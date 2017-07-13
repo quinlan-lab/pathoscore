@@ -3,7 +3,7 @@ import sys
 import math
 import toolshed as ts
 from cyvcf2 import VCF
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -17,15 +17,13 @@ def infos(path):
         infos.append(x.split("ID=")[1].split(",")[0])
     return infos
 
-def evaluate(vcfs, fields, inverse_fields, prefix):
+def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     scored = {}
     unscored = {}
     for f in fields + inverse_fields:
         scored[f] = [[], []]
         unscored[f] = 0
 
-    #scored['comb'] = [[], []]
-    #unscored['comb'] = 0
     fields = [(f, False) for f in fields] + [(f, True) for f in inverse_fields]
     common_pathogenic = 0
 
@@ -49,23 +47,6 @@ def evaluate(vcfs, fields, inverse_fields, prefix):
                     score = -score
 
                 scored[f][is_pathogenic].append(score)
-            """
-            ccr = v.INFO.get('exac_ccr')
-            if ccr is None:
-                unscored['comb'] += 1
-                continue
-            cadd = v.INFO.get('MPC')
-            if cadd is None or cadd == "NA":
-                unscored['comb'] += 1
-                continue
-            ccr, cadd = float(ccr), float(cadd) * 33
-            if ccr < 1:
-                scored['comb'][is_pathogenic].append(cadd)
-            elif cadd > 50 and ccr > 50:
-                scored['comb'][is_pathogenic].append(cadd)
-
-    fields.append('comb')
-            """
 
     for f, _ in fields:
         for i in (0, 1):
@@ -81,38 +62,80 @@ def evaluate(vcfs, fields, inverse_fields, prefix):
     import seaborn as sns
     sns.set_style('whitegrid')
 
-    rocs = {}
     prcs = {}
+    skipped = []
     for f, _ in fields:
+        if len(scored[f][0]) == 0:
+            print("skipping %s because no negatives" % f, file=sys.stderr)
+            skipped.append(f)
+            continue
+        if len(scored[f][1]) == 0:
+            print("skipping %s because no positives" % f, file=sys.stderr)
+            skipped.append(f)
+            continue
+
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
         fpr, tpr, _ = roc_curve(truth, scores, pos_label=1)
         auc_score = auc(fpr, tpr)
-        rocs[f] = (tpr, fpr, auc_score)
+
+        prc, rcl, _ = precision_recall_curve(truth, scores, pos_label=1)
+        aps = average_precision_score(truth, scores)
+        prcs[f] = (prc, rcl, aps)
+
+        #rocs[f] = (tpr, fpr, auc_score)
         plt.plot(fpr, tpr, label=" %s auc: %.3f" % (f, auc_score))
         plt.plot([0, 1], [0, 1], linestyle='--')
+
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     plt.legend(loc="lower right")
+    if title:
+        plt.title(title)
     plt.savefig(prefix + ".roc.png")
     plt.close()
 
-    fig, axes = plt.subplots(len(fields), figsize=(9, 12))
-    for i, (f, _) in enumerate(fields):
+
+    for f, _ in fields:
+        if f in skipped: continue
+        prc, rcl, aps = prcs[f]
+        plt.plot(rcl, prc, label="%s average: %.3f" % (f, aps))
+
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.legend(loc="lower right")
+    if title:
+        plt.title(title)
+    plt.savefig(prefix + ".prc.png")
+    plt.close()
+
+    fig, axes = plt.subplots(len(fields) - len(skipped), figsize=(9, 12))
+    try:
+        axes[0]
+    except:
+        axes = (axes,)
+    for i, f in enumerate(f for f, _ in fields if not f in skipped):
         ax = axes[i]
 
         vals = np.array(scored[f][0])
-        step_plot(vals, ax, "#1111dd", label="benign", alpha=0.75)
+        step_plot(vals, ax, label="benign", alpha=0.85)
 
         vals = np.array(scored[f][1])
-        step_plot(vals, ax, "#dd1111", label="pathogenic", alpha=0.75)
+        step_plot(vals, ax, label="pathogenic", alpha=0.85)
 
         ax.set_xlabel(f)
+        rng = vals.max() - vals.min()
+        ax.set_xlim(vals.min() - 0.01 * rng, vals.max() + 0.01 * rng)
         ax.set_ylabel("Frequency")
 
     axes[0].legend(loc='upper left')
+    if title:
+        plt.suptitle(title)
+    plt.tight_layout()
     plt.savefig(prefix + ".step.png")
 
 
@@ -167,21 +190,20 @@ type="Flag"
         args.lua = """<(echo "")"""
     for i, query_vcf in enumerate(args.query_vcf):
         if len(args.query_vcf) == 2:
-            outs.append(args.prefix + ".%d.vcf.gz" % ["pathogenic", "benign"][i])
+            outs.append(args.prefix + ".%s.vcf.gz" % ["pathogenic", "benign"][i])
         else:
             outs.append(args.prefix + ".vcf.gz")
 
         print(cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua))
         list(ts.nopen("|" + cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua)))
-    #evaluate(outs, names, args.prefix)
 
-def step_plot(vals, ax, color, **kwargs):
+def step_plot(vals, ax, **kwargs):
     p, p_edges = np.histogram(vals, bins=50, range=[vals.min(), vals.max()])
     sp = sum(p)
     p = [float(x) / sp for x in p]
     p.append(p[-1])
     with_p = p_edges[-1] - p_edges[0]
-    ax.plot(p_edges, p, color=color, ls='steps', lw=1.9, **kwargs)
+    ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -208,9 +230,9 @@ if __name__ == "__main__":
     pev.add_argument("--inverse-score-columns", "-i", action="append", default=[],
             help="like score columns but lower score is more constrained")
     pev.add_argument("--prefix", default="pathoscore", help="prefix for output files")
+    pev.add_argument("--title", help="optional title for figure")
 
     a = p.parse_args()
-    print("TODO: implement postannotation (e.g. to do combined metrics)")
 
     if not len(a.query_vcf) in (1, 2):
         raise Exception("must specify 1 or 2 query vcfs")
@@ -218,5 +240,6 @@ if __name__ == "__main__":
     if a.command == "annotate":
         annotate(a)
     else:
-        evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns, a.prefix)
+        evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns,
+                a.prefix, a.title)
 
