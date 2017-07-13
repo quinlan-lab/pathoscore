@@ -22,10 +22,11 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     unscored = {}
     for f in fields + inverse_fields:
         scored[f] = [[], []]
-        unscored[f] = 0
+        unscored[f] = [0, 0]
 
     fields = [(f, False) for f in fields] + [(f, True) for f in inverse_fields]
     common_pathogenic = 0
+    scorable = [0, 0]
 
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
@@ -33,15 +34,17 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
                 continue
+            scorable[is_pathogenic] += 1
+
 
             for f, invert in fields:
                 score = v.INFO.get(f)
                 if score is None or score == "NA":
-                    unscored[f] += 1
+                    unscored[f][is_pathogenic] += 1
                     continue
                 score = float(score)
                 if math.isnan(score):
-                    unscored[f] += 1
+                    unscored[f][is_pathogenic] += 1
                     continue
                 if invert:
                     score = -score
@@ -56,8 +59,10 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
                 arr[np.isinf(arr)] = imax
                 scored[f][i] = list(arr)
 
-    print(unscored)
+    print("unscored:", unscored)
+    print("scored:", {k: {'benign': len(v[0]), 'pathogenic': len(v[1])} for k, v in scored.items()})
     print("pathogenics excluded (via '_exclude' flag): %d" % common_pathogenic)
+    print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
     from matplotlib import pyplot as plt
     import seaborn as sns
     sns.set_style('whitegrid')
@@ -83,25 +88,54 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
         aps = average_precision_score(truth, scores)
         prcs[f] = (prc, rcl, aps)
 
-        #rocs[f] = (tpr, fpr, auc_score)
-        plt.plot(fpr, tpr, label=" %s auc: %.3f" % (f, auc_score))
+        plt.plot(fpr, tpr, label="%s auc: %.3f" % (f, auc_score))
         plt.plot([0, 1], [0, 1], linestyle='--')
+
+    keys = [k for k in scored.keys() if not k in skipped]
+    # order is scored path, benign then unscored path, benign
+    score_counts = [
+        np.array([len(scored[key][1]) for key in keys]),
+        np.array([len(scored[key][0]) for key in keys]),
+        np.array([unscored[key][1] for key in keys]),
+        np.array([unscored[key][0] for key in keys]),
+        ]
+    labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
+    pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.legend(loc="lower right")
+    legend = plt.legend(loc="lower right")
+    [x.set_text(x.get_text() + " (%.1f%% of variants scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc.png")
     plt.close()
 
 
-    for f, _ in fields:
-        if f in skipped: continue
+    # histogram of scored/unscored by pathogenic/benign
+
+    inds = list(range(len(keys)))
+    width = 0.75
+    colors = sns.color_palette()[:2]
+    colors = [colors[0], tuple(x * 0.85 for x in colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
+
+    bottom = np.zeros_like(score_counts[0])
+    shapes = []
+    for i, sc in enumerate(score_counts):
+        shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=colors[i], label=labels[i])[0])
+        bottom += sc
+    plt.xticks(inds, [f for f, _ in fields if not f in skipped])
+    plt.ylabel('Variants')
+    #ph = [plt.plot([],marker="", ls="")[0]]*2
+    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.16), ncol=2)
+    plt.savefig(prefix + ".stats.png")
+    plt.close()
+
+    for i, f in enumerate(keys):
         prc, rcl, aps = prcs[f]
-        plt.plot(rcl, prc, label="%s average: %.3f" % (f, aps))
+        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% of variants scored)" % (f, aps, pct_variants_scored[i]))
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
@@ -118,7 +152,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
         axes[0]
     except:
         axes = (axes,)
-    for i, f in enumerate(f for f, _ in fields if not f in skipped):
+    for i, f in enumerate(keys):
         ax = axes[i]
 
         vals = np.array(scored[f][0])
@@ -198,7 +232,7 @@ type="Flag"
         list(ts.nopen("|" + cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua)))
 
 def step_plot(vals, ax, **kwargs):
-    p, p_edges = np.histogram(vals, bins=50, range=[vals.min(), vals.max()])
+    p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
     sp = sum(p)
     p = [float(x) / sp for x in p]
     p.append(p[-1])
