@@ -7,6 +7,8 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_prec
 import numpy as np
 from matplotlib import pyplot as plt
 
+__version__ = "0.1.0"
+
 cmd = "vcfanno -lua {lua} -p {p} {conf} {query_vcf} | bgzip -c > {out_vcf}"
 
 def infos(path):
@@ -171,6 +173,46 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
         plt.suptitle(title)
     plt.tight_layout()
     plt.savefig(prefix + ".step.png")
+
+    write_html(prefix, title)
+
+def write_html(prefix, title=None):
+    import datetime
+    fh = open(prefix + ".overview.html", "w")
+    fh.write("""<html>
+<title>pathoscore summary {title}</title>
+<body>
+
+<pre>
+date: {date}
+created with <b><a href="https://github.com/quinlan-lab/pathoscore">pathoscore</a></b> version: {version}
+{title}
+</pre>
+
+<i>pathoscore evaluates variant pathogenicity tools and scores.</i>
+
+
+<h3>Distribution of variants scored</h3>
+<img src="{prefix}.stats.png"/>
+
+<h3>Receiver Operating Characteristic Curve</h3>
+<img src="{prefix}.roc.png"/>
+
+<h3>Precision-Recall Curve</h3>
+<img src="{prefix}.prc.png"/>
+
+<h3>Step Plot of Scores</h3>
+<img src="{prefix}.step.png"/>
+
+<pre>
+invocation: {invocation}
+</pre>
+</body>
+</html>""".format(prefix=prefix, date=datetime.date.today(),
+                  title=("for " + title) if title else "",
+                  invocation=" ".join(sys.argv),
+                  version=__version__))
+    fh.close()
 
 
 def annotate(args):
