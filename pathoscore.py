@@ -213,6 +213,7 @@ invocation: {invocation}
                   invocation=" ".join(sys.argv),
                   version=__version__))
     fh.close()
+    print("wrote overview to %s" % fh.name, file=sys.stderr)
 
 
 def annotate(args):

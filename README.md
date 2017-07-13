@@ -58,8 +58,8 @@ An example `conf` to combine 2 scores looks like:
 ```
 [[postannotation]]
 name="combined"
-op="lua:(exac_ccr or 0)+(33*(MPC ~= 'NA' and MPC or 0 or 0))"
-fields=["exac_ccr", "MPC"]
+op="lua:exac_ccr+33\*cadd"
+fields=["exac_ccr", "cadd"]
 type="Float"
 ```
 
@@ -95,3 +95,31 @@ pip install -r requirements.txt
 ```
 
 Then you should be able to run the evaluation scripts.
+
+Truth Sets
+----------
+
+Part of `pathoscore` is to provide curated truth sets that can be used for evaluation.
+
+These are kept in `truth-sets/`. Each set has a benign and/or a pathogenic set. 
+
+Pull-requests for recipes that add new truth sets are welcomed. These should include a `make.sh`
+script that, when run will pull from the original data source and make a benign and/or pathogenic
+vcf that is bgzipped and tabixed and made as small as possible (see the clinvar example for how
+to remove unneeded fields from the INFO field).
+
+Currently we have:
+
+### clinvar
+
++ clinvar pathogenics are either `Pathogenic` or `Likely-Pathogenic` and variants with uncertainty are removed.
++ clinvar benigns are either `Benign` or `Likely-Benign` and variants with uncertainty are removed.
+
+### samocha
+
+These are from [Kaitlin Samocha's paper](http://www.biorxiv.org/content/early/2017/06/12/148353) on mis-sense contraint.
+
++ benigns are labelled as `control` in her source file
++ pathogenics are anything other than control.
+
+
