@@ -32,7 +32,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
 
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
-            is_pathogenic = int((len(vcfs) == 2 and i == 0) or (len(vcfs) == 1 and v.INFO.get('ispath') is not None))
+            is_pathogenic = i == 0
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
                 continue
@@ -230,10 +230,9 @@ def annotate(args):
     scores = [x.split(":") for x in args.scores]
     assert all(len(x) == 4 for x in scores), "scores must be specified as quartets of path:dest:source:op"
 
-    fh = open("x.conf", "w")
-    lua_fields, names = [], []
-    for q in args.query_vcf:
-        lua_fields.extend('"%s"' % i for i in infos(q))
+    fh = open("%s.conf" % args.prefix, "w")
+    lua_fields = ['"%s"' % i for i in infos(args.query_vcf)]
+    names = []
     for path, name, field, op in scores:
         names.append(name)
         lua_fields.append('"%s"' % name)
@@ -258,31 +257,21 @@ fields=["AF"]
 ops=["flag"]
 \n""".format(path=args.exclude))
 
-    if args.pathogenic:
-        fh.write("""
-[[postannotation]]
-name="ispath"
-fields=[%s]
-op="lua:%s"
-type="Flag"
-""" % (",".join(lua_fields), args.pathogenic))
 
     if args.conf:
         fh.write("\n")
         fh.write(open(args.conf).read())
     fh.close()
 
-    outs = []
     if not args.lua:
         args.lua = """<(echo "")"""
-    for i, query_vcf in enumerate(args.query_vcf):
-        if len(args.query_vcf) == 2:
-            outs.append(args.prefix + ".%s.vcf.gz" % ["pathogenic", "benign"][i])
-        else:
-            outs.append(args.prefix + ".vcf.gz")
 
-        print(cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua))
-        list(ts.nopen("|" + cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua)))
+    out = args.prefix + ".vcf.gz"
+
+    fcmd = cmd.format(p=args.procs, conf=fh.name, query_vcf=args.query_vcf, out_vcf=out, lua=args.lua)
+    print(fcmd)
+    for d in ts.nopen("|" + fcmd):
+        print(d)
 
 def step_plot(vals, ax, **kwargs):
     p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
@@ -301,13 +290,12 @@ if __name__ == "__main__":
     ### annotation ###
     pan = subps.add_parser("annotate")
     pan.add_argument("--procs", "-p", default=3, help="number of processors to use for vcfanno")
-    pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
-    pan.add_argument("--pathogenic", help="expression indicating that a variant is pathogenic. (If 2 vcf files are given this is not needed)")
     pan.add_argument("--exclude", help="optional exclude vcf to filter supposed pathogenic variants (matches on REF and ALT)")
+    pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     pan.add_argument("--conf", help="optional vcfanno conf file that will also be used for annotation")
     pan.add_argument("--lua", help="optional path to lua file if it's needed by the --conf argument")
     pan.add_argument("--scores", "-s", action="append", help="format of path:name:field:op e.g. some.bed:myscore:4:self or cadd.vcf:cadd:PHRED:concat that give the path of the annotation file, the name in the output, and the column in the input respectively. may be specified multiple times. op is one of those specified here: https://github.com/brentp/vcfanno#operations")
-    pan.add_argument("query_vcf", nargs="+", help="vcf(s) to annotate if 2 are specified it must be pathogenic and then benign")
+    pan.add_argument("query_vcf", help="vcf to annotate")
 
     ### evaluation ###
     pev = subps.add_parser("evaluate")
@@ -321,12 +309,12 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    if not len(a.query_vcf) in (1, 2):
-        raise Exception("must specify 1 or 2 query vcfs")
 
     if a.command == "annotate":
         annotate(a)
     else:
+        if not len(a.query_vcf) in (1, 2):
+            raise Exception("must specify 1 or 2 query vcfs")
         evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns,
                 a.prefix, a.title)
 
