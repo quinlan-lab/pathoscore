@@ -115,7 +115,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
 
-    plt.xlim(0, 1)
+    plt.xlim(-0.004, 1)
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
