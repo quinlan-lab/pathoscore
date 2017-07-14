@@ -78,6 +78,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
 
     sns.set_style('whitegrid')
     sns.set_palette(sns.color_palette("Set1", 12))
+    plt.figure(figsize=(6, 6))
 
     prcs = {}
     keys = []
@@ -120,7 +121,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     [x.set_text(x.get_text() + " (%.1f%% of variants scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".roc.png", figsize=(7, 7))
+    plt.savefig(prefix + ".roc.png")
     plt.close()
 
 
@@ -129,6 +130,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     inds = 0.1 + np.array(list(range(len(keys))))
     width = 0.72
 
+    plt.figure(figsize=(6, 4))
     bottom = np.zeros_like(score_counts[0])
     shapes = []
     for i, sc in enumerate(score_counts):
@@ -138,10 +140,11 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
     leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
-    plt.savefig(prefix + ".stats.png", figsize=(7, 5))
+    plt.savefig(prefix + ".stats.png")
     plt.close()
     print(keys)
 
+    plt.figure(figsize=(6, 6))
     for i, f in enumerate(keys):
         prc, rcl, aps = prcs[f]
         plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% of variants scored)" % (f, aps, pct_variants_scored[i]))
@@ -153,10 +156,10 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.legend(loc="lower right")
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".prc.png", figsize=(7, 7))
+    plt.savefig(prefix + ".prc.png")
     plt.close()
 
-    fig, axes = plt.subplots(len(keys), figsize=(7, 2*len(keys)))
+    fig, axes = plt.subplots(len(keys), figsize=(6, 2*len(keys)))
     try:
         axes[0]
     except:
