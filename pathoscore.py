@@ -9,6 +9,8 @@ from matplotlib import pyplot as plt
 
 __version__ = "0.1.0"
 
+WIDTH = 7
+
 cmd = "vcfanno -lua {lua} -p {p} {conf} {query_vcf} | bgzip -c > {out_vcf}"
 
 def infos(path):
@@ -78,7 +80,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
 
     sns.set_style('whitegrid')
     sns.set_palette(sns.color_palette("Set1", 12))
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(WIDTH, 6))
 
     prcs = {}
     keys = []
@@ -118,7 +120,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     legend = plt.legend(loc="lower right")
-    [x.set_text(x.get_text() + " (%.1f%% of variants scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
+    [x.set_text(x.get_text() + " (%.1f%% scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc.png")
@@ -130,7 +132,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     inds = 0.1 + np.array(list(range(len(keys))))
     width = 0.72
 
-    plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(WIDTH, 4))
     bottom = np.zeros_like(score_counts[0])
     shapes = []
     for i, sc in enumerate(score_counts):
@@ -144,10 +146,10 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.close()
     print(keys)
 
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(WIDTH, 6))
     for i, f in enumerate(keys):
         prc, rcl, aps = prcs[f]
-        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% of variants scored)" % (f, aps, pct_variants_scored[i]))
+        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% scored)" % (f, aps, pct_variants_scored[i]))
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
@@ -159,7 +161,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.savefig(prefix + ".prc.png")
     plt.close()
 
-    fig, axes = plt.subplots(len(keys), figsize=(6, 2*len(keys)))
+    fig, axes = plt.subplots(len(keys), figsize=(WIDTH, 2*len(keys)))
     try:
         axes[0]
     except:
@@ -248,14 +250,15 @@ names=["{name}"]
 ops=["{op}"]
 \n""".format(**locals()))
 
-    if args.exclude:
+    for exclude in (args.exclude or []):
+        field = """fields=["AF"]""" if exclude.endswith(".vcf.gz") else """columns=[1]"""
         fh.write("""
 [[annotation]]
 file="{path}"
 names=["_exclude"]
-fields=["AF"]
+{field}
 ops=["flag"]
-\n""".format(path=args.exclude))
+\n""".format(path=exclude, field=field))
 
 
     if args.conf:
@@ -290,7 +293,7 @@ if __name__ == "__main__":
     ### annotation ###
     pan = subps.add_parser("annotate")
     pan.add_argument("--procs", "-p", default=3, help="number of processors to use for vcfanno")
-    pan.add_argument("--exclude", help="optional exclude vcf to filter supposed pathogenic variants (matches on REF and ALT)")
+    pan.add_argument("--exclude", default=[], action="append", help="optional exclude vcf or bed to filter supposed pathogenic variants")
     pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     pan.add_argument("--conf", help="optional vcfanno conf file that will also be used for annotation")
     pan.add_argument("--lua", help="optional path to lua file if it's needed by the --conf argument")
