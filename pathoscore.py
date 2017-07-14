@@ -248,14 +248,15 @@ names=["{name}"]
 ops=["{op}"]
 \n""".format(**locals()))
 
-    if args.exclude:
+    for exclude in (args.exclude or []):
+        field = """fields=["AF"]""" if exclude.endswith(".vcf.gz") else """columns=[1]"""
         fh.write("""
 [[annotation]]
 file="{path}"
 names=["_exclude"]
-fields=["AF"]
+{field}
 ops=["flag"]
-\n""".format(path=args.exclude))
+\n""".format(path=exclude, field=field))
 
 
     if args.conf:
@@ -290,7 +291,7 @@ if __name__ == "__main__":
     ### annotation ###
     pan = subps.add_parser("annotate")
     pan.add_argument("--procs", "-p", default=3, help="number of processors to use for vcfanno")
-    pan.add_argument("--exclude", help="optional exclude vcf to filter supposed pathogenic variants (matches on REF and ALT)")
+    pan.add_argument("--exclude", default=[], action="append", help="optional exclude vcf or bed to filter supposed pathogenic variants")
     pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     pan.add_argument("--conf", help="optional vcfanno conf file that will also be used for annotation")
     pan.add_argument("--lua", help="optional path to lua file if it's needed by the --conf argument")
