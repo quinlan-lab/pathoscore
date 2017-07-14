@@ -40,4 +40,6 @@ bcftools concat $( ls chr*.vcf.gz | grep -v illumina ) \
     | bcftools view -Oz > wellderly.vcf.gz
 
 wget ftp://ftp.ensembl.org/pub/grch37/release-84/gff3/homo_sapiens/Homo_sapiens.GRCh37.82.gff3.gz
-bedtools intersect -u -a wellderly.vcf.gz -b Homo_sapiens.GRCh37.82.gff3.gz -header | bcftools view -Oz > wellderly.coding.vcf.gz
+zcat Homo_sapiens.GRCh37.82.gff3.gz | awk '$3=="CDS"' | cut -f 1,4,5 | ./gsort /dev/stdin genome.txt > exons.bed
+
+bedtools intersect -sorted -header -a wellderly.vcf.gz -b exons.bed -g genome.txt | bcftools view -Oz > wellderly.coding.vcf.gz
