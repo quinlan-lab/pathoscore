@@ -44,14 +44,19 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
                 if score is None or score == "NA":
                     unscored[f][is_pathogenic] += 1
                     continue
-                score = float(score)
-                if math.isnan(score):
-                    unscored[f][is_pathogenic] += 1
-                    continue
-                if invert:
-                    score = -score
+                try:
+                    iscores = float(score),
+                except: # handle multiple alts by recording both
+                    iscores = map(float, score.split(","))
 
-                scored[f][is_pathogenic].append(score)
+                for score in iscores:
+                    if math.isnan(score):
+                        unscored[f][is_pathogenic] += 1
+                        continue
+                    if invert:
+                        score = -score
+
+                    scored[f][is_pathogenic].append(score)
 
     for f, _ in fields:
         for i in (0, 1):
@@ -67,19 +72,23 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
     from matplotlib import pyplot as plt
     import seaborn as sns
+
+    bar_colors = sns.color_palette()[:2]
+    bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
+
     sns.set_style('whitegrid')
+    sns.set_palette(sns.color_palette("Set1", 12))
 
     prcs = {}
-    skipped = []
+    keys = []
     for f, _ in fields:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
-            skipped.append(f)
             continue
         if len(scored[f][1]) == 0:
             print("skipping %s because no positives" % f, file=sys.stderr)
-            skipped.append(f)
             continue
+        keys.append(f)
 
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
@@ -91,9 +100,8 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
         prcs[f] = (prc, rcl, aps)
 
         plt.plot(fpr, tpr, label="%s auc: %.3f" % (f, auc_score))
-        plt.plot([0, 1], [0, 1], linestyle='--')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
 
-    keys = [k for k in scored.keys() if not k in skipped]
     # order is scored path, benign then unscored path, benign
     score_counts = [
         np.array([len(scored[key][1]) for key in keys]),
@@ -112,28 +120,27 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     [x.set_text(x.get_text() + " (%.1f%% of variants scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".roc.png")
+    plt.savefig(prefix + ".roc.png", figsize=(7, 7))
     plt.close()
 
 
     # histogram of scored/unscored by pathogenic/benign
 
-    inds = list(range(len(keys)))
-    width = 0.75
-    colors = sns.color_palette()[:2]
-    colors = [colors[0], tuple(x * 0.85 for x in colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
+    inds = 0.1 + np.array(list(range(len(keys))))
+    width = 0.72
 
     bottom = np.zeros_like(score_counts[0])
     shapes = []
     for i, sc in enumerate(score_counts):
-        shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=colors[i], label=labels[i])[0])
+        shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
-    plt.xticks(inds, [f for f, _ in fields if not f in skipped])
+    plt.xticks(np.array(inds) + 0.15, keys)
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
-    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.16), ncol=2)
-    plt.savefig(prefix + ".stats.png")
+    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
+    plt.savefig(prefix + ".stats.png", figsize=(7, 5))
     plt.close()
+    print(keys)
 
     for i, f in enumerate(keys):
         prc, rcl, aps = prcs[f]
@@ -146,10 +153,10 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.legend(loc="lower right")
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".prc.png")
+    plt.savefig(prefix + ".prc.png", figsize=(7, 7))
     plt.close()
 
-    fig, axes = plt.subplots(len(fields) - len(skipped), figsize=(9, 12))
+    fig, axes = plt.subplots(len(keys), figsize=(7, 2*len(keys)))
     try:
         axes[0]
     except:
@@ -157,11 +164,11 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     for i, f in enumerate(keys):
         ax = axes[i]
 
-        vals = np.array(scored[f][0])
-        step_plot(vals, ax, label="benign", alpha=0.85)
-
         vals = np.array(scored[f][1])
         step_plot(vals, ax, label="pathogenic", alpha=0.85)
+
+        vals = np.array(scored[f][0])
+        step_plot(vals, ax, label="benign", alpha=0.85)
 
         ax.set_xlabel(f)
         rng = vals.max() - vals.min()
