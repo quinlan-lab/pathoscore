@@ -9,6 +9,8 @@ from matplotlib import pyplot as plt
 
 __version__ = "0.1.0"
 
+WIDTH = 7
+
 cmd = "vcfanno -lua {lua} -p {p} {conf} {query_vcf} | bgzip -c > {out_vcf}"
 
 def infos(path):
@@ -32,7 +34,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
 
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
-            is_pathogenic = int((len(vcfs) == 2 and i == 0) or (len(vcfs) == 1 and v.INFO.get('ispath') is not None))
+            is_pathogenic = i == 0
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
                 continue
@@ -44,14 +46,19 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
                 if score is None or score == "NA":
                     unscored[f][is_pathogenic] += 1
                     continue
-                score = float(score)
-                if math.isnan(score):
-                    unscored[f][is_pathogenic] += 1
-                    continue
-                if invert:
-                    score = -score
+                try:
+                    iscores = float(score),
+                except: # handle multiple alts by recording both
+                    iscores = map(float, score.split(","))
 
-                scored[f][is_pathogenic].append(score)
+                for score in iscores:
+                    if math.isnan(score):
+                        unscored[f][is_pathogenic] += 1
+                        continue
+                    if invert:
+                        score = -score
+
+                    scored[f][is_pathogenic].append(score)
 
     for f, _ in fields:
         for i in (0, 1):
@@ -67,19 +74,24 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
     from matplotlib import pyplot as plt
     import seaborn as sns
+
+    bar_colors = sns.color_palette()[:2]
+    bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
+
     sns.set_style('whitegrid')
+    sns.set_palette(sns.color_palette("Set1", 12))
+    plt.figure(figsize=(WIDTH, 6))
 
     prcs = {}
-    skipped = []
+    keys = []
     for f, _ in fields:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
-            skipped.append(f)
             continue
         if len(scored[f][1]) == 0:
             print("skipping %s because no positives" % f, file=sys.stderr)
-            skipped.append(f)
             continue
+        keys.append(f)
 
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
@@ -91,9 +103,8 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
         prcs[f] = (prc, rcl, aps)
 
         plt.plot(fpr, tpr, label="%s auc: %.3f" % (f, auc_score))
-        plt.plot([0, 1], [0, 1], linestyle='--')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
 
-    keys = [k for k in scored.keys() if not k in skipped]
     # order is scored path, benign then unscored path, benign
     score_counts = [
         np.array([len(scored[key][1]) for key in keys]),
@@ -104,12 +115,12 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
 
-    plt.xlim(0, 1)
+    plt.xlim(-0.004, 1)
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     legend = plt.legend(loc="lower right")
-    [x.set_text(x.get_text() + " (%.1f%% of variants scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
+    [x.set_text(x.get_text() + " (%.1f%% scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc.png")
@@ -118,26 +129,27 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
 
     # histogram of scored/unscored by pathogenic/benign
 
-    inds = list(range(len(keys)))
-    width = 0.75
-    colors = sns.color_palette()[:2]
-    colors = [colors[0], tuple(x * 0.85 for x in colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
+    inds = 0.1 + np.array(list(range(len(keys))))
+    width = 0.72
 
+    plt.figure(figsize=(WIDTH, 4))
     bottom = np.zeros_like(score_counts[0])
     shapes = []
     for i, sc in enumerate(score_counts):
-        shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=colors[i], label=labels[i])[0])
+        shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
-    plt.xticks(inds, [f for f, _ in fields if not f in skipped])
+    plt.xticks(np.array(inds) + 0.15, keys)
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
-    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.16), ncol=2)
+    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
     plt.savefig(prefix + ".stats.png")
     plt.close()
+    print(keys)
 
+    plt.figure(figsize=(WIDTH, 6))
     for i, f in enumerate(keys):
         prc, rcl, aps = prcs[f]
-        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% of variants scored)" % (f, aps, pct_variants_scored[i]))
+        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% scored)" % (f, aps, pct_variants_scored[i]))
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
@@ -149,7 +161,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     plt.savefig(prefix + ".prc.png")
     plt.close()
 
-    fig, axes = plt.subplots(len(fields) - len(skipped), figsize=(9, 12))
+    fig, axes = plt.subplots(len(keys), figsize=(WIDTH, 2*len(keys)))
     try:
         axes[0]
     except:
@@ -157,11 +169,11 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     for i, f in enumerate(keys):
         ax = axes[i]
 
-        vals = np.array(scored[f][0])
-        step_plot(vals, ax, label="benign", alpha=0.85)
-
         vals = np.array(scored[f][1])
         step_plot(vals, ax, label="pathogenic", alpha=0.85)
+
+        vals = np.array(scored[f][0])
+        step_plot(vals, ax, label="benign", alpha=0.85)
 
         ax.set_xlabel(f)
         rng = vals.max() - vals.min()
@@ -220,10 +232,9 @@ def annotate(args):
     scores = [x.split(":") for x in args.scores]
     assert all(len(x) == 4 for x in scores), "scores must be specified as quartets of path:dest:source:op"
 
-    fh = open("x.conf", "w")
-    lua_fields, names = [], []
-    for q in args.query_vcf:
-        lua_fields.extend('"%s"' % i for i in infos(q))
+    fh = open("%s.conf" % args.prefix, "w")
+    lua_fields = ['"%s"' % i for i in infos(args.query_vcf)]
+    names = []
     for path, name, field, op in scores:
         names.append(name)
         lua_fields.append('"%s"' % name)
@@ -239,40 +250,31 @@ names=["{name}"]
 ops=["{op}"]
 \n""".format(**locals()))
 
-    if args.exclude:
+    for exclude in (args.exclude or []):
+        field = """fields=["AF"]""" if exclude.endswith(".vcf.gz") else """columns=[1]"""
         fh.write("""
 [[annotation]]
 file="{path}"
 names=["_exclude"]
-fields=["AF"]
+{field}
 ops=["flag"]
-\n""".format(path=args.exclude))
+\n""".format(path=exclude, field=field))
 
-    if args.pathogenic:
-        fh.write("""
-[[postannotation]]
-name="ispath"
-fields=[%s]
-op="lua:%s"
-type="Flag"
-""" % (",".join(lua_fields), args.pathogenic))
 
     if args.conf:
         fh.write("\n")
         fh.write(open(args.conf).read())
     fh.close()
 
-    outs = []
     if not args.lua:
         args.lua = """<(echo "")"""
-    for i, query_vcf in enumerate(args.query_vcf):
-        if len(args.query_vcf) == 2:
-            outs.append(args.prefix + ".%s.vcf.gz" % ["pathogenic", "benign"][i])
-        else:
-            outs.append(args.prefix + ".vcf.gz")
 
-        print(cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua))
-        list(ts.nopen("|" + cmd.format(p=args.procs, conf=fh.name, query_vcf=query_vcf, out_vcf=outs[-1], lua=args.lua)))
+    out = args.prefix + ".vcf.gz"
+
+    fcmd = cmd.format(p=args.procs, conf=fh.name, query_vcf=args.query_vcf, out_vcf=out, lua=args.lua)
+    print(fcmd)
+    for d in ts.nopen("|" + fcmd):
+        print(d)
 
 def step_plot(vals, ax, **kwargs):
     p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
@@ -291,13 +293,12 @@ if __name__ == "__main__":
     ### annotation ###
     pan = subps.add_parser("annotate")
     pan.add_argument("--procs", "-p", default=3, help="number of processors to use for vcfanno")
+    pan.add_argument("--exclude", default=[], action="append", help="optional exclude vcf or bed to filter supposed pathogenic variants")
     pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
-    pan.add_argument("--pathogenic", help="expression indicating that a variant is pathogenic. (If 2 vcf files are given this is not needed)")
-    pan.add_argument("--exclude", help="optional exclude vcf to filter supposed pathogenic variants (matches on REF and ALT)")
     pan.add_argument("--conf", help="optional vcfanno conf file that will also be used for annotation")
     pan.add_argument("--lua", help="optional path to lua file if it's needed by the --conf argument")
     pan.add_argument("--scores", "-s", action="append", help="format of path:name:field:op e.g. some.bed:myscore:4:self or cadd.vcf:cadd:PHRED:concat that give the path of the annotation file, the name in the output, and the column in the input respectively. may be specified multiple times. op is one of those specified here: https://github.com/brentp/vcfanno#operations")
-    pan.add_argument("query_vcf", nargs="+", help="vcf(s) to annotate if 2 are specified it must be pathogenic and then benign")
+    pan.add_argument("query_vcf", help="vcf to annotate")
 
     ### evaluation ###
     pev = subps.add_parser("evaluate")
@@ -311,12 +312,12 @@ if __name__ == "__main__":
 
     a = p.parse_args()
 
-    if not len(a.query_vcf) in (1, 2):
-        raise Exception("must specify 1 or 2 query vcfs")
 
     if a.command == "annotate":
         annotate(a)
     else:
+        if not len(a.query_vcf) in (1, 2):
+            raise Exception("must specify 1 or 2 query vcfs")
         evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns,
                 a.prefix, a.title)
 

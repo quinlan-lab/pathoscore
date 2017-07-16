@@ -72,10 +72,12 @@ python pathoscore.py evaluate \
     -s exac_ccr \
     -i mpc_regions \
     -s combined \
-    pathoscore.vcf.gz
+    pathogenic.vcf.gz \
+    benign.vcf.gz
 ```
 
 This will take the output(s) from `annotate` and create ROC curves and score distribution plots.
+It assumes that the first VCF contains pathogenic variants and the 2nd contains benign variants.
 It uses the columns specified via `-s` and `-i` as the scores.
 
 `-i` indicates that lower scores are more constrained where as 
