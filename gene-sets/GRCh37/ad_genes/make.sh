@@ -15,6 +15,7 @@ sed 's/\"//g' codingtranscriptome.bed | sed 's/;//g' > Homo_sapiens37.bed
 awk 'FNR==NR{genes[$1]; next} {for (gene in genes) if (gene == $5) print $0, genes[gene]}' FS='\t' OFS='\t' berg_ad.tsv Homo_sapiens37.bed | sort -k1,1 -k2,2n | cut -f -3 > unflattened_ad_genes.bed
 # creates flattened representation of protein-coding exome covering AD genes
 bedtools merge -i unflattened_ad_genes.bed > ad_genes.bed
+
 # bedtools complement so we can use the EXCLUDE option
 if [[ ! -s hg19.chrom.sizes ]]; then
     wget https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes
