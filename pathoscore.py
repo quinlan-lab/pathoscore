@@ -1,4 +1,5 @@
 from __future__ import print_function
+import os
 import sys
 import math
 import toolshed as ts
@@ -21,7 +22,7 @@ def infos(path):
         infos.append(x.split("ID=")[1].split(",")[0])
     return infos
 
-def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
+def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
     scored = {}
     unscored = {}
     for f in fields + inverse_fields:
@@ -32,9 +33,15 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     common_pathogenic = 0
     scorable = [0, 0]
 
+    include_skipped = 0
+
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
             is_pathogenic = i == 0
+            if include and v.INFO.get(include) is not None:
+                include_skipped += 1
+                continue
+
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
                 continue
@@ -71,6 +78,9 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None):
     print("unscored:", unscored)
     print("scored:", {k: {'benign': len(v[0]), 'pathogenic': len(v[1])} for k, v in scored.items()})
     print("pathogenics excluded (via '_exclude' flag): %d" % common_pathogenic)
+    if include:
+        print("variants skipped for lack of include: %d" % include_skipped)
+
     print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
     from matplotlib import pyplot as plt
     import seaborn as sns
@@ -220,7 +230,7 @@ created with <b><a href="https://github.com/quinlan-lab/pathoscore">pathoscore</
 invocation: {invocation}
 </pre>
 </body>
-</html>""".format(prefix=prefix, date=datetime.date.today(),
+</html>""".format(prefix=prefix.split(os.path.sep)[-1], date=datetime.date.today(),
                   title=("for " + title) if title else "",
                   invocation=" ".join(sys.argv),
                   version=__version__))
@@ -307,6 +317,7 @@ if __name__ == "__main__":
                      default=[])
     pev.add_argument("--inverse-score-columns", "-i", action="append", default=[],
             help="like score columns but lower score is more constrained")
+    pev.add_argument("--include", help="only evaluate variants that have this Flag in the INFO field. (Useful for specifying include regions)")
     pev.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     pev.add_argument("--title", help="optional title for figure")
 
@@ -319,5 +330,5 @@ if __name__ == "__main__":
         if not len(a.query_vcf) in (1, 2):
             raise Exception("must specify 1 or 2 query vcfs")
         evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns,
-                a.prefix, a.title)
+                a.prefix, a.title, include=a.include)
 
