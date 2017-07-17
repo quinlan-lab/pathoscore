@@ -141,7 +141,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     plt.close()
 
     plt.figure(figsize=(WIDTH, 6))
-    tps = [fpr10[f][1] for f in score_methods]
+    tps = [fpr10[f][1]*0.1/fpr10[f][0] for f in score_methods]
     xps = np.arange(len(tps))
     bar_list = plt.bar(xps, tps, align='center', color=bar_colors[0])
     for b, c in zip(bar_list, sns.color_palette()):
