@@ -22,7 +22,7 @@ def infos(path):
         infos.append(x.split("ID=")[1].split(",")[0])
     return infos
 
-def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
+def evaluate(vcfs, fields, inverse_fields, include=None):
     scored = {}
     unscored = {}
     for f in fields + inverse_fields:
@@ -47,7 +47,6 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
                 continue
             scorable[is_pathogenic] += 1
 
-
             for f, invert in fields:
                 score = v.INFO.get(f)
                 if score is None or score == "NA":
@@ -67,7 +66,8 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
 
                     scored[f][is_pathogenic].append(score)
 
-    for f, _ in fields:
+    methods = [f for f, _ in fields]
+    for f in methods:
         for i in (0, 1):
             arr = np.array(scored[f][i], dtype=float)
             if np.any(np.isinf(arr)):
@@ -82,6 +82,9 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
         print("variants skipped for lack of include: %d" % include_skipped)
 
     print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
+    return methods, scored, unscored, scorable
+
+def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     from matplotlib import pyplot as plt
     import seaborn as sns
 
@@ -93,15 +96,13 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
     plt.figure(figsize=(WIDTH, 6))
 
     prcs = {}
-    keys = []
-    for f, _ in fields:
+    for f in score_methods:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
             continue
         if len(scored[f][1]) == 0:
             print("skipping %s because no positives" % f, file=sys.stderr)
             continue
-        keys.append(f)
 
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
@@ -117,10 +118,10 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
 
     # order is scored path, benign then unscored path, benign
     score_counts = [
-        np.array([len(scored[key][1]) for key in keys]),
-        np.array([len(scored[key][0]) for key in keys]),
-        np.array([unscored[key][1] for key in keys]),
-        np.array([unscored[key][0] for key in keys]),
+        np.array([len(scored[key][1]) for key in score_methods]),
+        np.array([len(scored[key][0]) for key in score_methods]),
+        np.array([unscored[key][1] for key in score_methods]),
+        np.array([unscored[key][0] for key in score_methods]),
         ]
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
@@ -139,7 +140,7 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
 
     # histogram of scored/unscored by pathogenic/benign
 
-    inds = 0.1 + np.array(list(range(len(keys))))
+    inds = 0.1 + np.array(list(range(len(score_methods))))
     width = 0.72
 
     plt.figure(figsize=(WIDTH, 4))
@@ -148,16 +149,16 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
     for i, sc in enumerate(score_counts):
         shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
-    plt.xticks(np.array(inds) + 0.15, keys)
+    plt.xticks(np.array(inds) + 0.15, score_methods)
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
     leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
     plt.savefig(prefix + ".stats.png")
     plt.close()
-    print(keys)
+    print(score_methods)
 
     plt.figure(figsize=(WIDTH, 6))
-    for i, f in enumerate(keys):
+    for i, f in enumerate(score_methods):
         prc, rcl, aps = prcs[f]
         plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% scored)" % (f, aps, pct_variants_scored[i]))
 
@@ -171,12 +172,13 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
     plt.savefig(prefix + ".prc.png")
     plt.close()
 
-    fig, axes = plt.subplots(len(keys), figsize=(WIDTH, 2*len(keys)))
+    fig, axes = plt.subplots(len(score_methods), figsize=(WIDTH,
+        2*len(score_methods)))
     try:
         axes[0]
     except:
         axes = (axes,)
-    for i, f in enumerate(keys):
+    for i, f in enumerate(score_methods):
         ax = axes[i]
 
         vals = np.array(scored[f][1])
@@ -195,7 +197,6 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
         plt.suptitle(title)
     plt.tight_layout()
     plt.savefig(prefix + ".step.png")
-
     write_html(prefix, scorable, title)
 
 def write_html(prefix, scorable, title=None):
@@ -334,8 +335,6 @@ if __name__ == "__main__":
     if a.command == "annotate":
         annotate(a)
     else:
-        if not len(a.query_vcf) in (1, 2):
-            raise Exception("must specify 1 or 2 query vcfs")
-        evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns,
-                a.prefix, a.title, include=a.include)
+        methods, scored, unscored, scorable = evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns, include=a.include)
+        plot(methods, scored, unscored, scorable, a.prefix, a.title)
 
