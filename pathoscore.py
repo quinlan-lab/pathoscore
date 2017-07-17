@@ -8,7 +8,7 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_prec
 import numpy as np
 from matplotlib import pyplot as plt
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 WIDTH = 7
 
@@ -196,9 +196,9 @@ def evaluate(vcfs, fields, inverse_fields, prefix, title=None, include=None):
     plt.tight_layout()
     plt.savefig(prefix + ".step.png")
 
-    write_html(prefix, title)
+    write_html(prefix, scorable, title)
 
-def write_html(prefix, title=None):
+def write_html(prefix, scorable, title=None):
     import datetime
     fh = open(prefix + ".overview.html", "w")
     fh.write("""<html>
@@ -212,6 +212,11 @@ created with <b><a href="https://github.com/quinlan-lab/pathoscore">pathoscore</
 </pre>
 
 <i>pathoscore evaluates variant pathogenicity tools and scores.</i>
+
+<p>
+In this evaluation, there were <b>{pathogenic} pathogenic</b> and <b>{benign}
+benign</b> variants that could be scored.
+</p>
 
 
 <h3>Distribution of variants scored</h3>
@@ -233,6 +238,8 @@ invocation: {invocation}
 </html>""".format(prefix=prefix.split(os.path.sep)[-1], date=datetime.date.today(),
                   title=("for " + title) if title else "",
                   invocation=" ".join(sys.argv),
+                  benign=scorable[0],
+                  pathogenic=scorable[1],
                   version=__version__))
     fh.close()
     print("wrote overview to %s" % fh.name, file=sys.stderr)
