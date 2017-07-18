@@ -181,10 +181,12 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     for b, c in zip(bar_list, sns.color_palette()):
         b.set_color(c)
 
-    plt.xticks(xps, score_methods)
+    plt.xticks(xps, score_methods, rotation=30)
     plt.ylabel('True positive rate')
     plt.title('TPR at FPR 10')
 
+    plt.tight_layout()
+    plt.xlim(xmin=-0.5, xmax=len(tps) - 0.5)
     plt.savefig(prefix + ".fpr10.png")
     plt.close()
 
@@ -200,10 +202,11 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     for i, sc in enumerate(score_counts):
         shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
-    plt.xticks(np.array(inds) + 0.15, score_methods)
+    plt.xticks(np.array(inds) + 0.15, score_methods, rotation=30)
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
     leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
+    plt.tight_layout()
     plt.savefig(prefix + ".stats.png")
     plt.close()
     print(score_methods)
