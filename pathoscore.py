@@ -22,7 +22,15 @@ def infos(path):
         infos.append(x.split("ID=")[1].split(",")[0])
     return infos
 
-def evaluate(vcfs, fields, inverse_fields, include=None):
+def isfunctional(csqs):
+    for csq in csqs.split(","):
+        eff = csq.split("|", 2)[0]
+        if eff in ('stop_gained', 'stop_lost', 'start_lost', 'initiator_codon', 'rare_amino_acid',
+                     'missense', 'protein_altering', 'frameshift'):
+            return True
+    return False
+
+def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
     scored = {}
     unscored = {}
     for f in fields + inverse_fields:
@@ -34,6 +42,7 @@ def evaluate(vcfs, fields, inverse_fields, include=None):
     scorable = [0, 0]
 
     include_skipped = 0
+    functional_skipped = 0
 
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
@@ -41,6 +50,12 @@ def evaluate(vcfs, fields, inverse_fields, include=None):
             if include and v.INFO.get(include) is not None:
                 include_skipped += 1
                 continue
+
+            if functional:
+                csq = v.INFO.get("BCSQ")
+                if csq is None or not isfunctional(csq):
+                    functional_skipped += 1
+                    continue
 
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
@@ -80,9 +95,28 @@ def evaluate(vcfs, fields, inverse_fields, include=None):
     print("pathogenics excluded (via '_exclude' flag): %d" % common_pathogenic)
     if include:
         print("variants skipped for lack of include: %d" % include_skipped)
+    if functional:
+        print("variants skipped as not functional: %d" % functional_skipped)
 
     print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
     return methods, scored, unscored, scorable
+
+def getTPR(fpr, tpr, at=0.1001, show=False):
+        idx = np.searchsorted(fpr, at, side="left")
+        idx1 = np.searchsorted(fpr, at, side="right")
+        if fpr[idx1] == 1:
+            idx -= 1
+            idx1 -= 1
+        f0, f1 = fpr[idx], fpr[idx1]
+        t0, t1 = tpr[idx], tpr[idx1]
+        if f0 > at:
+            return t0 * 0.1 / f0
+
+        if show:
+            print(t0, t1, f0, f1)
+        dists = [abs(f - at) for f in (f0, f1)]
+        sd = sum(dists)
+        return float(t0 * dists[0] / sd + t1 * dists[1] / sd)
 
 def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     from matplotlib import pyplot as plt
@@ -96,7 +130,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     plt.figure(figsize=(WIDTH, 6))
 
     prcs = {}
-    fpr10 = {}
+    tpr10 = {}
     for f in score_methods:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
@@ -109,8 +143,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
         fpr, tpr, thresh = roc_curve(truth, scores, pos_label=1, drop_intermediate=True)
         auc_score = auc(fpr, tpr)
-        idx = np.searchsorted(fpr, 0.1001)
-        fpr10[f] = (fpr[idx], tpr[idx])
+        tpr10[f] = getTPR(fpr, tpr, 0.1001, show=f=="pp2hdiv")
 
         prc, rcl, _ = precision_recall_curve(truth, scores, pos_label=1)
         aps = average_precision_score(truth, scores)
@@ -128,6 +161,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
         ]
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
+    plt.axvline(x=0.1, color='#bbbbbb', alpha=0.2, zorder=-1)
 
     plt.xlim(-0.004, 1)
     plt.ylim(0, 1)
@@ -141,7 +175,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     plt.close()
 
     plt.figure(figsize=(WIDTH, 6))
-    tps = [fpr10[f][1]*0.1/fpr10[f][0] for f in score_methods]
+    tps = [tpr10[f] for f in score_methods]
     xps = np.arange(len(tps))
     bar_list = plt.bar(xps, tps, align='center', color=bar_colors[0])
     for b, c in zip(bar_list, sns.color_palette()):
@@ -381,6 +415,8 @@ def add_eval_args(p):
     p.add_argument("--inverse-score-columns", "-i", action="append", default=[],
             help="like score columns but lower score is more constrained")
     p.add_argument("--include", help="only evaluate variants that have this Flag in the INFO field. (Useful for specifying include regions)")
+    p.add_argument("--functional", action="store_true", default=False,
+    help="only evaluate variants that are missense or loss-of-function per annotation from bcftools csq. Default is to evaluate all variants in the input")
     p.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     p.add_argument("--title", help="optional title for figure")
 
@@ -414,10 +450,14 @@ if __name__ == "__main__":
     if a.command == "annotate":
         annotate(a)
     elif a.command == "evaluate":
-        methods, scored, unscored, scorable = evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns, include=a.include)
+        methods, scored, unscored, scorable = evaluate(a.query_vcf,
+                a.score_columns, a.inverse_score_columns, include=a.include,
+                functional=a.functional)
         plot(methods, scored, unscored, scorable, a.prefix, a.title)
     else:
-        methods, scored, unscored, scorable = evaluate(a.query_vcf, a.score_columns, a.inverse_score_columns, include=a.include)
+        methods, scored, unscored, scorable = evaluate(a.query_vcf,
+                a.score_columns, a.inverse_score_columns, include=a.include,
+                functional=a.functional)
         for k in scored.keys():
             sample(scored[k][0], scored[k][1], unscored, k, a.prefix, a.title)
 
