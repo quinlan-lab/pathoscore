@@ -110,6 +110,9 @@ script that, when run will pull from the original data source and make a benign 
 vcf that is bgzipped and tabixed and made as small as possible (see the clinvar example for how
 to remove unneeded fields from the INFO field).
 
+All truth-sets should be annotated with `bcftools csq` so that it's possible to choose to score only
+functional variants.
+
 Currently we have:
 
 ### clinvar
