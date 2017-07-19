@@ -13,7 +13,9 @@ The sections below describe the tools
 Annotate
 --------
 
-Annotate a vcf with some scores (which can be bed or vcf)
+Annotate a vcf with some scores (which can be bed or vcf).
+Note that this tool is a simple wrapper around [vcfanno](https://github.com/brentp/vcfanno) so 
+a user can instead use to run vcfanno directly.
 
 ```
 python pathoscore.py annotate \
@@ -35,15 +37,10 @@ The `scores` format is `path:name:column:op` where:
 + column indicates the column number (or INFO name) to pull from the scores VCF.
 + op is a `vcfanno` operation.
 
-### pathogenic
-
-pathogenic is a `lua` expression that will be run on the dataset to indicate which variants are pathogenic.
-It could also be something like `pathogenic ~= nil`.
-
 ### exclude
 
 is a population VCF that is use to filter would-be pathogenic variants (as we know that common variants
-can't be pathogenic).
+can't be pathogenic). This can also be a set of regions to exclude.
 
 ### conf
 
@@ -57,7 +54,7 @@ An example `conf` to combine 2 scores looks like:
 ```
 [[postannotation]]
 name="combined"
-op="lua:exac_ccr+33\*cadd"
+op="lua:exac_ccr+10\*cadd"
 fields=["exac_ccr", "cadd"]
 type="Float"
 ```
