@@ -19,8 +19,7 @@ Annotate a vcf with some scores (which can be bed or vcf)
 python pathoscore.py annotate \
     --scores exac-ccrs.bed.gz:exac_ccr:14:max \
     --scores mpc.regions.clean.sorted.bed.gz:mpc_regions:5:max \
-    --exclude "dataset ~= 'control'" \
-    --population /data/gemini_install/data/gemini_data/ExAC.r0.3.sites.vep.tidy.vcf.gz \
+    --exclude /data/gemini_install/data/gemini_data/ExAC.r0.3.sites.vep.tidy.vcf.gz \
     --conf combined-score.conf \
     testing-denovos.vcf.gz
 ```
