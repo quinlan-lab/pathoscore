@@ -26,6 +26,7 @@ exclude = "criteria_provided,_conflicting_interpretations no_assertion_criteria_
 for v in vcf:
     clnsig = v.INFO.get('CLNSIG')
     if clnsig is None: continue
+    if v.REF == v.ALT[0]: continue
 
     # exclude things with questionable review status
     if v.INFO.get('CLNREVSTAT', '') in exclude: continue

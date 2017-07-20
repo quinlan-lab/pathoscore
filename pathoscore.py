@@ -46,6 +46,8 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
 
     for i, vcf in enumerate(vcfs):
         for v in VCF(vcf):
+            if v.REF == v.ALT[0]:
+                continue
             is_pathogenic = i == 0
             if include and v.INFO.get(include) is not None:
                 include_skipped += 1
