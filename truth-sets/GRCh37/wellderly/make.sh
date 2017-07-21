@@ -1,7 +1,7 @@
 wget -nd -r --accept "*illumina.vcf.gz*"  https://genomics.scripps.edu/browser/files/wellderly/vcf/ --no-check-certificate
 
-wget wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz
-wget wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz.tbi
+wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz
+wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz.tbi
 
 wget -O vcfanno https://github.com/brentp/vcfanno/releases/download/v0.2.8/vcfanno_linux64
 chmod +x vcfanno
@@ -52,6 +52,8 @@ fi
 
 gff=../Homo_sapiens.GRCh37.82.gff3.gz
 
-bash ../../../scripts/bcsq.sh $gff tmp.vcf.gz $fasta | bgzip -c >  wellderly.coding.benign.vcf.gz
+bash ../../../scripts/bcsq.sh $gff tmp.vcf.gz $fasta \
+    | python ../../score.py - \
+    | bgzip -c >  wellderly.coding.benign.vcf.gz
 rm tmp.vcf.gz
 tabix -f wellderly.coding.benign.vcf.gz
