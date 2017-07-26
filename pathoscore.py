@@ -39,7 +39,7 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
 
     fields = [(f, False) for f in fields] + [(f, True) for f in inverse_fields]
     common_pathogenic = 0
-    scorable = [0, 0]
+    scorable = [[0, 0], [0, 0]]
 
     include_skipped = 0
     functional_skipped = 0
@@ -53,6 +53,8 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
                 include_skipped += 1
                 continue
 
+            is_indel = 1 - int(len(v.REF) == 1 and len(v.ALT[0]) == 1)
+
             if functional:
                 csq = v.INFO.get("BCSQ")
                 if csq is None or not isfunctional(csq):
@@ -62,7 +64,7 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
                 continue
-            scorable[is_pathogenic] += 1
+            scorable[is_pathogenic][is_indel] += 1
 
             for f, invert in fields:
                 score = v.INFO.get(f)
@@ -103,7 +105,7 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
     if functional:
         print("variants skipped as not functional: %d" % functional_skipped)
 
-    print("scorable sites: benign: %d, pathogenic: %d" % tuple(scorable))
+    print("scorable sites: benign (snp/indel): (%d/%d), pathogenic: (%d/%d)" % tuple(scorable[0] + scorable[1]))
     return methods, scored, unscored, scorable
 
 def getTPR(fpr, tpr, at=0.1001, show=False):
@@ -274,8 +276,8 @@ created with <b><a href="https://github.com/quinlan-lab/pathoscore">pathoscore</
 <i>pathoscore evaluates variant pathogenicity tools and scores.</i>
 
 <p>
-In this evaluation, there were <b>{pathogenic} pathogenic</b> and <b>{benign}
-benign</b> variants that could be scored.
+In this evaluation, there were <b>{pathogenic} pathogenic</b> ({pathogenic_pct_indel:.1f}% indels)
+and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could be scored.
 </p>
 
 
@@ -301,8 +303,10 @@ invocation: {invocation}
 </html>""".format(prefix=prefix.split(os.path.sep)[-1], date=datetime.date.today(),
                   title=("for " + title) if title else "",
                   invocation=" ".join(sys.argv),
-                  benign=scorable[0],
-                  pathogenic=scorable[1],
+                  pathogenic=sum(scorable[1]),
+                  pathogenic_pct_indel=100.0*scorable[1][1] / float(sum(scorable[1])),
+                  benign=sum(scorable[0]),
+                  benign_pct_indel=100.0*scorable[0][1] / float(sum(scorable[0])),
                   suffix=suffix,
                   version=__version__))
     fh.close()
@@ -378,7 +382,7 @@ def add_eval_args(p):
     p.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     p.add_argument("--title", help="optional title for figure")
     p.add_argument("--suffix", help="plot type", choices=("png", "svg", "pdf",
-    "eps"), default="png")
+    "eps"), default="svg")
 
 
 if __name__ == "__main__":
