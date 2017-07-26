@@ -1,10 +1,16 @@
-wget -nd -r --accept "*illumina.vcf.gz*"  https://genomics.scripps.edu/browser/files/wellderly/vcf/ --no-check-certificate
+wget -nc -r --accept "*illumina.vcf.gz*"  https://genomics.scripps.edu/browser/files/wellderly/vcf/ --no-check-certificate
 
+if [[ ! -e gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz ]]; then
 wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz
+fi
+if [[ ! -e gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz.tbi ]]; then
 wget https://s3.amazonaws.com/gemini-annotations/gnomad.exomes.r2.0.1.sites.no-VEP.nohist.tidy.vcf.gz.tbi
+fi
 
+if [[ ! -e ./vcfanno ]]; then
 wget -O vcfanno https://github.com/brentp/vcfanno/releases/download/v0.2.8/vcfanno_linux64
 chmod +x vcfanno
+fi
 
 wget -O gargs https://github.com/brentp/gargs/releases/download/v0.3.8/gargs_linux
 chmod +x gargs
