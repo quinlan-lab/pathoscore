@@ -132,8 +132,11 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     bar_colors = sns.color_palette()[:2]
     bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
 
-    sns.set_style('whitegrid')
-    sns.set_palette(sns.color_palette("Set1", 12))
+    sns.set_style('white')
+    if len(score_methods) <= 10:
+        sns.set_palette(sns.color_palette("Vega10", 10))
+    else:
+        sns.set_palette(sns.color_palette("Vega20", 20))
     plt.figure(figsize=(WIDTH, 6))
 
     prcs = {}
@@ -156,7 +159,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         aps = average_precision_score(truth, scores)
         prcs[f] = (prc, rcl, aps)
 
-        plt.plot(fpr, tpr, label="%s AUC: %.3f" % (f, auc_score))
+        plt.plot(fpr, tpr, label="%-12s (%.2f)" % (f, auc_score))
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
 
     # order is scored path, benign then unscored path, benign
@@ -168,14 +171,16 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         ]
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
-    plt.axvline(x=0.1, color='#bbbbbb', alpha=0.2, zorder=-1)
+    plt.axvline(x=0.1, color='#444444', alpha=0.6, zorder=-1, lw=2)
+    sns.despine()
 
     plt.xlim(-0.004, 1)
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    legend = plt.legend(loc="lower right")
-    [x.set_text(x.get_text() + " (%.1f%% scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
+    legend = plt.legend(loc="lower right", title="%-12s (AUC)" % "method",
+            handletextpad=1)
+    plt.setp(legend.texts, family='monospace')
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc." + suffix)
@@ -194,6 +199,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     plt.tight_layout()
     plt.xlim(xmin=-0.5, xmax=len(tps) - 0.5)
+    sns.despine()
     plt.savefig(prefix + ".fpr10." + suffix)
     plt.close()
 
@@ -210,29 +216,32 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
     plt.xticks(np.array(inds) + 0.15, score_methods, rotation=30)
+    sns.despine()
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
-    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
-    plt.tight_layout()
-    plt.savefig(prefix + ".stats." + suffix)
+    leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.20), ncol=2)
+    #plt.tight_layout(h_pad=0.2)
+    plt.savefig(prefix + ".stats." + suffix,  bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
     print(score_methods)
 
     plt.figure(figsize=(WIDTH, 6))
     for i, f in enumerate(score_methods):
         prc, rcl, aps = prcs[f]
-        plt.plot(rcl, prc, label="%s average: %.3f (%.1f%% scored)" % (f, aps, pct_variants_scored[i]))
+        plt.plot(rcl, prc, label="%s (%.3f)" % (f, aps))
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.legend(loc="lower right")
+    plt.legend(loc="lower right", title="method (average precision)")
     if title:
         plt.title(title)
     plt.savefig(prefix + ".prc." + suffix)
     plt.close()
 
+    # get the red and blue colors for path, benign
+    sns.set_palette(sns.color_palette("Set1", 10))
     fig, axes = plt.subplots(len(score_methods), figsize=(WIDTH,
         2*len(score_methods)))
     try:
@@ -257,6 +266,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     if title:
         plt.suptitle(title)
     plt.tight_layout()
+    sns.despine()
     plt.savefig(prefix + ".step." + suffix)
     write_html(prefix, scorable, title, suffix)
 
