@@ -70,18 +70,21 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
                     unscored[f][is_pathogenic] += 1
                     continue
                 try:
-                    iscores = float(score),
+                    score = float(score)
                 except: # handle multiple alts by recording both
                     iscores = map(float, score.split(","))
-
-                for score in iscores:
-                    if math.isnan(score):
-                        unscored[f][is_pathogenic] += 1
-                        continue
                     if invert:
-                        score = -score
+                        score = min(iscores)
+                    else:
+                        score = max(iscores)
 
-                    scored[f][is_pathogenic].append(score)
+                if math.isnan(score):
+                    unscored[f][is_pathogenic] += 1
+                    continue
+                if invert:
+                    score = -score
+
+                scored[f][is_pathogenic].append(score)
 
     methods = [f for f, _ in fields]
     for f in methods:
@@ -120,7 +123,7 @@ def getTPR(fpr, tpr, at=0.1001, show=False):
         sd = sum(dists)
         return float(t0 * dists[0] / sd + t1 * dists[1] / sd)
 
-def plot(score_methods, scored, unscored, scorable, prefix, title=None):
+def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
     from matplotlib import pyplot as plt
     import seaborn as sns
 
@@ -173,7 +176,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     [x.set_text(x.get_text() + " (%.1f%% scored)" % pct_variants_scored[i]) for i, x in enumerate(legend.get_texts())]
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".roc.png")
+    plt.savefig(prefix + ".roc." + suffix)
     plt.close()
 
     plt.figure(figsize=(WIDTH, 6))
@@ -189,7 +192,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
 
     plt.tight_layout()
     plt.xlim(xmin=-0.5, xmax=len(tps) - 0.5)
-    plt.savefig(prefix + ".fpr10.png")
+    plt.savefig(prefix + ".fpr10." + suffix)
     plt.close()
 
 
@@ -209,7 +212,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     #ph = [plt.plot([],marker="", ls="")[0]]*2
     leg = plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=2)
     plt.tight_layout()
-    plt.savefig(prefix + ".stats.png")
+    plt.savefig(prefix + ".stats." + suffix)
     plt.close()
     print(score_methods)
 
@@ -225,7 +228,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     plt.legend(loc="lower right")
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".prc.png")
+    plt.savefig(prefix + ".prc." + suffix)
     plt.close()
 
     fig, axes = plt.subplots(len(score_methods), figsize=(WIDTH,
@@ -252,10 +255,10 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None):
     if title:
         plt.suptitle(title)
     plt.tight_layout()
-    plt.savefig(prefix + ".step.png")
-    write_html(prefix, scorable, title)
+    plt.savefig(prefix + ".step." + suffix)
+    write_html(prefix, scorable, title, suffix)
 
-def write_html(prefix, scorable, title=None):
+def write_html(prefix, scorable, title=None, suffix="png"):
     import datetime
     fh = open(prefix + ".overview.html", "w")
     fh.write("""<html>
@@ -277,19 +280,19 @@ benign</b> variants that could be scored.
 
 
 <h3>Distribution of variants scored</h3>
-<img src="{prefix}.stats.png"/>
+<img src="{prefix}.stats.{suffix}"/>
 
 <h3>Receiver Operating Characteristic Curve</h3>
-<img src="{prefix}.roc.png"/>
+<img src="{prefix}.roc.{suffix}"/>
 
 <h3>True positive rate at FPR == 10</h3>
-<img src="{prefix}.fpr10.png"/>
+<img src="{prefix}.fpr10.{suffix}"/>
 
 <h3>Precision-Recall Curve</h3>
-<img src="{prefix}.prc.png"/>
+<img src="{prefix}.prc.{suffix}"/>
 
 <h3>Step Plot of Scores</h3>
-<img src="{prefix}.step.png"/>
+<img src="{prefix}.step.{suffix}"/>
 
 <pre>
 invocation: {invocation}
@@ -300,6 +303,7 @@ invocation: {invocation}
                   invocation=" ".join(sys.argv),
                   benign=scorable[0],
                   pathogenic=scorable[1],
+                  suffix=suffix,
                   version=__version__))
     fh.close()
     print("wrote overview to %s" % fh.name, file=sys.stderr)
@@ -361,57 +365,6 @@ def step_plot(vals, ax, **kwargs):
     with_p = p_edges[-1] - p_edges[0]
     ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
 
-def sample(bscores, pscores, unscored, method, prefix, title):
-
-    from matplotlib import pyplot as plt
-    import seaborn as sns
-
-    sns.set_style('whitegrid')
-    sns.set_palette(sns.color_palette("Set1", 12))
-    plt.figure(figsize=(WIDTH, 6))
-    #fig, axes = plt.subplots(2, 1, figsize=(WIDTH, 6))
-
-    """
-    bscores_full = np.array(list(bscores) + ([-np.Inf] * unscored[method][0]))
-    pscores_full = np.array(list(pscores) + ([-np.Inf] * unscored[method][1]))
-    print(bscores_full.shape, pscores_full.shape)
-    """
-
-    bscores, pscores = np.array(bscores), np.array(pscores)
-    print(bscores.shape, pscores.shape)
-
-    color = (0.8, 0.8, 0.8)
-    scores = []
-    full_scores = []
-
-    np.random.seed(32)
-    for i in range(10000):
-        psub = np.random.choice(pscores, size=1, replace=True)
-        bsub = np.random.choice(bscores, size=100, replace=True)
-        bsub.sort()
-        idx = len(bsub) - np.searchsorted(bsub, psub[0], side="right")
-        scores.append(idx)
-
-    """
-    np.random.seed(32)
-    for i in range(10000):
-        psub = np.random.choice(pscores_full, size=1, replace=True)
-        bsub = np.random.choice(bscores_full, size=100, replace=True)
-        bsub.sort()
-        idx = len(bsub) - np.searchsorted(bsub, psub[0], side="right")
-        full_scores.append(idx)
-
-    """
-    #axes[0].hist(scores, 30, alpha=0.8)
-    #axes[1].hist(full_scores, 101, alpha=0.8)
-    plt.hist(scores, 101, alpha=0.8)
-
-    #plt.legend()
-    plt.xlim(0, 100)
-    plt.xlabel("Rank of pathogenic variant")
-    plt.ylabel("Frequency")
-    plt.savefig("%s.%s.scoreat.png" % (prefix, method))
-
 
 def add_eval_args(p):
     p.add_argument("query_vcf", nargs="+", help="vcf(s) to annotate if 2 are specified it must be pathogenic and then benign")
@@ -424,6 +377,8 @@ def add_eval_args(p):
     help="only evaluate variants that are missense or loss-of-function per annotation from bcftools csq. Default is to evaluate all variants in the input")
     p.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     p.add_argument("--title", help="optional title for figure")
+    p.add_argument("--suffix", help="plot type", choices=("png", "svg", "pdf",
+    "eps"), default="png")
 
 
 if __name__ == "__main__":
@@ -434,6 +389,7 @@ if __name__ == "__main__":
 
     ### annotation ###
     pan = subps.add_parser("annotate")
+
     pan.add_argument("--procs", "-p", default=3, help="number of processors to use for vcfanno")
     pan.add_argument("--exclude", default=[], action="append", help="optional exclude vcf or bed to filter supposed pathogenic variants")
     pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
@@ -446,11 +402,7 @@ if __name__ == "__main__":
     pev = subps.add_parser("evaluate")
     add_eval_args(pev)
 
-    psub = subps.add_parser("subsample")
-    add_eval_args(psub)
-
     a = p.parse_args()
-
 
     if a.command == "annotate":
         annotate(a)
@@ -458,12 +410,6 @@ if __name__ == "__main__":
         methods, scored, unscored, scorable = evaluate(a.query_vcf,
                 a.score_columns, a.inverse_score_columns, include=a.include,
                 functional=a.functional)
-        plot(methods, scored, unscored, scorable, a.prefix, a.title)
-    else:
-        methods, scored, unscored, scorable = evaluate(a.query_vcf,
-                a.score_columns, a.inverse_score_columns, include=a.include,
-                functional=a.functional)
-        for k in scored.keys():
-            sample(scored[k][0], scored[k][1], unscored, k, a.prefix, a.title)
+        plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix)
 
 
