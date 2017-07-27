@@ -114,7 +114,7 @@ if __name__ == "__main__":
             continue
 
         for k in ('Grantham', 'mis_badness', 'BLOSUM'):
-            v.INFO[k.lower()] = smax[k]
+            v.INFO[k] = smax[k]
 
         wtr.write_record(v)
     wtr.close()
