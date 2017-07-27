@@ -25,6 +25,7 @@ for i, record in enumerate(sheet):
         continue
     
     record = dict(zip(keys, record))
+    if record['Variant Class'] == "Synonymous" or record['Variant Class'] == 'Splice site': continue
     print("{chrom}\t{pos}\t.\t{ref}\t{alt}\t10\tPASS\t.".format(\
             chrom=record['CHROM'], \
             pos=record['POS'], \
@@ -41,6 +42,7 @@ for i, record in enumerate(sheet):
         continue
     
     record = dict(zip(keys, record))
+    if record['Variant Class'] == "Synonymous" or record['Variant Class'] == 'Splice site': continue
     print("{chrom}\t{pos}\t.\t{ref}\t{alt}\t10\tPASS\t.".format(\
             chrom=record['CHROM'], \
             pos=record['POS'], \
