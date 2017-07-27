@@ -284,9 +284,10 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
     enrs = []
     for method in score_methods:
         benign, path = scored[method]
-        n10 = int(0.5 + 0.1 * (len(benign) + len(path)))
+        #n10 = int(0.5 + 0.05 * (len(benign) + len(path)))
+        n10 = 100
         # take the top-most benign and pathogenic
-        # then take the top10% of all and track which are benign and pathogenic
+        # then take the top 100 of all and track which are benign and pathogenic
         a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
         # proceed past the lowest score until we see a different value
         lowest_score = a10[n10-1][0]
@@ -302,6 +303,7 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
         enrichment10[method] = (obs / exp, binom_test(patho10, len(a10), p=exp))
         enrs.append(enrichment10[method][0])
 
+    print(zip(score_methods, enrs))
     enrs = np.log2(enrs)
     xps = np.arange(len(enrichment10))
     bar_list = plt.bar(xps, enrs, align='center')
@@ -312,7 +314,7 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
     anylt0 = False
     for i, b in enumerate(bar_list):
         height = 0.005 * ymax + b.get_height()
-        if b.get_y() < 0:
+        if b.get_height() < 0 or b.get_y() < 0:
             height = 0.005 * ymax
             anylt0 = True
         label = "%.2f" % enrs[i]
@@ -320,7 +322,7 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
 
     plt.xticks(xps, score_methods, rotation=30)
     plt.ylabel('Log odds-ratio (pathogenic / benign)')
-    plt.title('Enrichment for pathogenic variants in top 10% of scores')
+    plt.title('Enrichment for pathogenic variants in top 100 scores')
     plt.tight_layout()
     plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
 
@@ -353,7 +355,7 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 <h3>Distribution of variants scored</h3>
 <img src="{prefix}.stats.{suffix}"/>
 
-<h3>Pathogenic enrichment for top 10% of scores</h3>
+<h3>Pathogenic enrichment in top 100 scores</h3>
 <img src="{prefix}.enr.{suffix}"/>
 
 <h3>Receiver Operating Characteristic Curve</h3>
