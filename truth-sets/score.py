@@ -95,11 +95,11 @@ if __name__ == "__main__":
     doctest.testmod()
 
     vcf = VCF(sys.argv[1])
-    vcf.add_info_to_header({'ID': 'grantham', 'Description': 'grantham score',
+    vcf.add_info_to_header({'ID': 'Grantham', 'Description': 'grantham score',
                             'Type':'Integer', 'Number': '1'})
     vcf.add_info_to_header({'ID': 'mis_badness', 'Description': 'missense badness score',
                             'Type':'Float', 'Number': '1'})
-    vcf.add_info_to_header({'ID': 'blosum', 'Description': 'blosum score',
+    vcf.add_info_to_header({'ID': 'BLOSUM', 'Description': 'blosum score',
                             'Type':'Integer', 'Number': '1'})
 
 

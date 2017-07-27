@@ -5,8 +5,11 @@ import math
 import toolshed as ts
 from cyvcf2 import VCF
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
+from scipy.stats import binom_test
 import numpy as np
 from matplotlib import pyplot as plt
+import seaborn as sns
+sns.set_style('white')
 
 __version__ = "0.1.1"
 
@@ -126,13 +129,10 @@ def getTPR(fpr, tpr, at=0.1001, show=False):
         return float(t0 * dists[0] / sd + t1 * dists[1] / sd)
 
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
-    from matplotlib import pyplot as plt
-    import seaborn as sns
 
     bar_colors = sns.color_palette()[:2]
     bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
 
-    sns.set_style('white')
     if len(score_methods) <= 10:
         sns.set_palette(sns.color_palette("Vega10", 10))
     else:
@@ -186,11 +186,18 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.savefig(prefix + ".roc." + suffix)
     plt.close()
 
+    plot_enrichment(score_methods, scored, prefix, suffix)
+
     plt.figure(figsize=(WIDTH, 6))
     tps = [tpr10[f] for f in score_methods]
     xps = np.arange(len(tps))
     bar_list = plt.bar(xps, tps, align='center', color=bar_colors[0])
-    for b, c in zip(bar_list, sns.color_palette()):
+    ymax, _ = plt.ylim()
+    ax = plt.gca()
+    for i, (b, c) in enumerate(zip(bar_list, sns.color_palette())):
+        height = 0.005 * ymax + b.get_height()
+        label = "%.2f" % tps[i]
+        ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
         b.set_color(c)
 
     plt.xticks(xps, score_methods, rotation=30)
@@ -270,6 +277,58 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.savefig(prefix + ".step." + suffix)
     write_html(prefix, scorable, title, suffix)
 
+def plot_enrichment(score_methods, scored, prefix, suffix):
+    plt.close()
+    plt.figure(figsize=(WIDTH, 6))
+    enrichment10 = {}
+    enrs = []
+    for method in score_methods:
+        benign, path = scored[method]
+        n10 = int(0.5 + 0.1 * (len(benign) + len(path)))
+        # take the top-most benign and pathogenic
+        # then take the top10% of all and track which are benign and pathogenic
+        a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
+        # proceed past the lowest score until we see a different value
+        lowest_score = a10[n10-1][0]
+        while n10 < len(a10) and a10[n10][0] == lowest_score:
+            n10 +=1
+        a10 = a10[:n10]
+
+        # expected is based on the ratio of pathogenic to total
+        exp = len(path) / float(len(path) + len(benign))
+        patho10 = float(sum(p == 1 for score, p in a10))
+        #observed is based on proportion of top10% of variants that are pathognic
+        obs = patho10 / len(a10)
+        enrichment10[method] = (obs / exp, binom_test(patho10, len(a10), p=exp))
+        enrs.append(enrichment10[method][0])
+
+    enrs = np.log2(enrs)
+    xps = np.arange(len(enrichment10))
+    bar_list = plt.bar(xps, enrs, align='center')
+    for b, c in zip(bar_list, sns.color_palette()):
+        b.set_color(c)
+    ax = plt.gca()
+    _, ymax = (ax.get_ylim())
+    anylt0 = False
+    for i, b in enumerate(bar_list):
+        height = 0.005 * ymax + b.get_height()
+        if b.get_y() < 0:
+            height = 0.005 * ymax
+            anylt0 = True
+        label = "%.2f" % enrs[i]
+        ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
+
+    plt.xticks(xps, score_methods, rotation=30)
+    plt.ylabel('Log odds-ratio (pathogenic / benign)')
+    plt.title('Enrichment for pathogenic variants in top 10% of scores')
+    plt.tight_layout()
+    plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
+
+    sns.despine(bottom=anylt0)
+    if anylt0:
+        plt.axhline(y=0, color='#000000', zorder=10, lw=1)
+    plt.savefig(prefix + ".enr." + suffix)
+
 def write_html(prefix, scorable, title=None, suffix="png"):
     import datetime
     fh = open(prefix + ".overview.html", "w")
@@ -293,6 +352,9 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 
 <h3>Distribution of variants scored</h3>
 <img src="{prefix}.stats.{suffix}"/>
+
+<h3>Pathogenic enrichment for top 10% of scores</h3>
+<img src="{prefix}.enr.{suffix}"/>
 
 <h3>Receiver Operating Characteristic Curve</h3>
 <img src="{prefix}.roc.{suffix}"/>
