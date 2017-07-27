@@ -9,6 +9,7 @@ vcf = VCF(sys.argv[1])
 fhs = {'benign': Writer('clinvar-benign.%s.vcf' % date, vcf),
        'benign-likely_benign': Writer('clinvar-benign-likely_benign.%s.vcf' % date, vcf),
        'pathogenic': Writer('clinvar-pathogenic.%s.vcf' % date, vcf),
+       'expert': Writer('clinvar-pathogenic-expert.%s.vcf' % date, vcf),
        'likely_pathogenic-pathogenic': Writer('clinvar-pathogenic-likely_pathogenic.%s.vcf' % date, vcf),
        }
 wtr = fhs['pathogenic']
@@ -29,7 +30,8 @@ for v in vcf:
     if v.REF == v.ALT[0]: continue
 
     # exclude things with questionable review status
-    if v.INFO.get('CLNREVSTAT', '') in exclude: continue
+    crs = v.INFO.get('CLNREVSTAT', '').lower()
+    if crs in exclude or any(c in exclude for c in crs.split(",")): continue
     info = v.INFO
     for k, _ in info:
         if k == 'CLNSIG': continue
@@ -43,5 +45,9 @@ for v in vcf:
     if key in lookup:
         okey = lookup[key]
         fhs[okey].write_record(v)
+
+    if 'expert' in crs or 'practice' in crs:
+        fhs['expert'].write_record(v)
+
 for fh in fhs.values():
     fh.close()
