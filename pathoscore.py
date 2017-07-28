@@ -184,7 +184,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     plot_enrichment(score_methods, scored, prefix, suffix)
 
-    plt.figure(figsize=(WIDTH, 6))
+    plt.figure(figsize=(WIDTH, 4))
     tps = [tpr10[f] for f in score_methods]
     xps = np.arange(len(tps))
     bar_list = plt.bar(xps, tps, align='center', color=bar_colors[0])
@@ -259,7 +259,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
 def plot_enrichment(score_methods, scored, prefix, suffix):
     plt.close()
-    plt.figure(figsize=(WIDTH, 6))
+    plt.figure(figsize=(WIDTH, 4))
     plt.yscale("log", basey=2)
     enrichment10 = {}
     enrs = {}
