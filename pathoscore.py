@@ -266,6 +266,8 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
     for method in score_methods:
         enrs[method] = []
         for k in range(10):
+            # 10 times we subsample to get same size for benign
+            # and pathogenic then take average.
             benign, path = scored[method]
             if len(benign) > len(path):
                 np.random.shuffle(benign)
@@ -274,10 +276,9 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
                 np.random.shuffle(path)
                 path = path[:len(benign)]
 
-            n10 = int(0.5 + 0.1 * (len(benign) + len(path)))
             n10 = 100
-            # take the top-most benign and pathogenic
-            # then take the top 100 of all and track which are benign and pathogenic
+            # take the top-most benign and pathogenic separately
+            # then take the top of combined and track which are benign and pathogenic
             a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
             # proceed past the lowest score until we see a different value
             lowest_score = a10[n10-1][0]
@@ -286,6 +287,8 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
             a10 = a10[:n10]
 
             # expected is based on the ratio of pathogenic to total
+            # this will be 0.5 now that we are sub-sampling to have
+            # matching numbers of pathogenic and benign
             exp = len(path) / float(len(path) + len(benign))
             patho10 = float(sum(p == 1 for score, p in a10))
             #observed is based on proportion of top10% of variants that are pathognic
@@ -303,32 +306,23 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
     ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     ax.get_yaxis().get_major_formatter().labelOnlyBase = False
     _, ymax = (ax.get_ylim())
-    anylt0 = False
     # this was used to put text at top of bars and handle going below 0.
     for i, b in enumerate(bar_list):
         height = 0.005 * ymax + b.get_height()
-        if b.get_height() < 0 or b.get_y() < 0:
-            height = 0.005 * ymax
-            anylt0 = True
         label = "%.2f" % enr_means[i]
         ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
     plt.xticks(xps, score_methods, rotation=30)
     plt.ylabel('Odds-ratio (pathogenic / benign)')
     plt.title('Enrichment for pathogenic variants in top 100 scores (log2 y-scale)')
     plt.tight_layout()
-    if ymax > 3:
-        plt.ylim(ymax=int(0.5 + ymax))
-        plt.yticks(range(int(0.5 + ymax) + 1))
-    else:
-        ymax2=int(0.5 + ymax)
-        while ymax2 < ymax:
-            ymax2 += 0.25
-        plt.ylim(ymax=ymax2)
-    plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
 
-    sns.despine(bottom=anylt0)
-    if anylt0:
-        plt.axhline(y=0, color='#000000', zorder=10, lw=1)
+    ymax2=int(0.5 + ymax)
+    while ymax2 < ymax:
+        ymax2 += 0.25
+    plt.ylim(ymax=ymax2)
+    sns.despine()
+
+    plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
     plt.savefig(prefix + ".enr." + suffix)
 
 def write_html(prefix, scorable, title=None, suffix="png"):
