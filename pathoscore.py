@@ -7,11 +7,12 @@ from cyvcf2 import VCF
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 from scipy.stats import binom_test
 import numpy as np
+import matplotlib
 from matplotlib import pyplot as plt
 import seaborn as sns
 sns.set_style('white')
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 WIDTH = 7
 
@@ -139,7 +140,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         sns.set_palette(sns.color_palette("Vega20", 20))
     plt.figure(figsize=(WIDTH, 6))
 
-    prcs = {}
     tpr10 = {}
     for f in score_methods:
         if len(scored[f][0]) == 0:
@@ -154,10 +154,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         fpr, tpr, thresh = roc_curve(truth, scores, pos_label=1, drop_intermediate=True)
         auc_score = auc(fpr, tpr)
         tpr10[f] = getTPR(fpr, tpr, 0.1001, show=f=="pp2hdiv")
-
-        prc, rcl, _ = precision_recall_curve(truth, scores, pos_label=1)
-        aps = average_precision_score(truth, scores)
-        prcs[f] = (prc, rcl, aps)
 
         plt.plot(fpr, tpr, label="%-12s (%.2f)" % (f, auc_score))
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
@@ -232,21 +228,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.close()
     print(score_methods)
 
-    plt.figure(figsize=(WIDTH, 6))
-    for i, f in enumerate(score_methods):
-        prc, rcl, aps = prcs[f]
-        plt.plot(rcl, prc, label="%s (%.3f)" % (f, aps))
-
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.legend(loc="lower right", title="method (average precision)")
-    if title:
-        plt.title(title)
-    plt.savefig(prefix + ".prc." + suffix)
-    plt.close()
-
     # get the red and blue colors for path, benign
     sns.set_palette(sns.color_palette("Set1", 10))
     fig, axes = plt.subplots(len(score_methods), figsize=(WIDTH,
@@ -280,50 +261,70 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 def plot_enrichment(score_methods, scored, prefix, suffix):
     plt.close()
     plt.figure(figsize=(WIDTH, 6))
+    plt.yscale("log", basey=2)
     enrichment10 = {}
-    enrs = []
+    enrs = {}
     for method in score_methods:
-        benign, path = scored[method]
-        #n10 = int(0.5 + 0.05 * (len(benign) + len(path)))
-        n10 = 100
-        # take the top-most benign and pathogenic
-        # then take the top 100 of all and track which are benign and pathogenic
-        a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
-        # proceed past the lowest score until we see a different value
-        lowest_score = a10[n10-1][0]
-        while n10 < len(a10) and a10[n10][0] == lowest_score:
-            n10 +=1
-        a10 = a10[:n10]
+        enrs[method] = []
+        for k in range(10):
+            benign, path = scored[method]
+            if len(benign) > len(path):
+                np.random.shuffle(benign)
+                benign = benign[:len(path)]
+            elif len(path) > len(benign):
+                np.random.shuffle(path)
+                path = path[:len(benign)]
 
-        # expected is based on the ratio of pathogenic to total
-        exp = len(path) / float(len(path) + len(benign))
-        patho10 = float(sum(p == 1 for score, p in a10))
-        #observed is based on proportion of top10% of variants that are pathognic
-        obs = patho10 / len(a10)
-        enrichment10[method] = (obs / exp, binom_test(patho10, len(a10), p=exp))
-        enrs.append(enrichment10[method][0])
+            n10 = int(0.5 + 0.1 * (len(benign) + len(path)))
+            n10 = 100
+            # take the top-most benign and pathogenic
+            # then take the top 100 of all and track which are benign and pathogenic
+            a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
+            # proceed past the lowest score until we see a different value
+            lowest_score = a10[n10-1][0]
+            while n10 < len(a10) and a10[n10][0] == lowest_score:
+                n10 +=1
+            a10 = a10[:n10]
 
-    print(zip(score_methods, enrs))
-    enrs = np.log2(enrs)
+            # expected is based on the ratio of pathogenic to total
+            exp = len(path) / float(len(path) + len(benign))
+            patho10 = float(sum(p == 1 for score, p in a10))
+            #observed is based on proportion of top10% of variants that are pathognic
+            obs = patho10 / len(a10)
+            enrichment10[method] = (obs / exp, binom_test(patho10, len(a10), p=exp))
+            enrs[method].append(enrichment10[method][0])
+    enr_means = [np.mean(enrs[method]) for method in score_methods]
+    enr_stds = [np.std(enrs[method]) for method in score_methods]
     xps = np.arange(len(enrichment10))
-    bar_list = plt.bar(xps, enrs, align='center')
+    bar_list = plt.bar(xps, enr_means, align='center')
     for b, c in zip(bar_list, sns.color_palette()):
         b.set_color(c)
     ax = plt.gca()
+    ax.axhline(y=1, lw=2, color='#aaaaaa', zorder=-1, ls='--')
+    ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.get_yaxis().get_major_formatter().labelOnlyBase = False
     _, ymax = (ax.get_ylim())
     anylt0 = False
+    # this was used to put text at top of bars and handle going below 0.
     for i, b in enumerate(bar_list):
         height = 0.005 * ymax + b.get_height()
         if b.get_height() < 0 or b.get_y() < 0:
             height = 0.005 * ymax
             anylt0 = True
-        label = "%.2f" % enrs[i]
+        label = "%.2f" % enr_means[i]
         ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
-
     plt.xticks(xps, score_methods, rotation=30)
-    plt.ylabel('Log odds-ratio (pathogenic / benign)')
-    plt.title('Enrichment for pathogenic variants in top 100 scores')
+    plt.ylabel('Odds-ratio (pathogenic / benign)')
+    plt.title('Enrichment for pathogenic variants in top 100 scores (log2 y-scale)')
     plt.tight_layout()
+    if ymax > 3:
+        plt.ylim(ymax=int(0.5 + ymax))
+        plt.yticks(range(int(0.5 + ymax) + 1))
+    else:
+        ymax2=int(0.5 + ymax)
+        while ymax2 < ymax:
+            ymax2 += 0.25
+        plt.ylim(ymax=ymax2)
     plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
 
     sns.despine(bottom=anylt0)
@@ -363,9 +364,6 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 
 <h3>True positive rate at FPR == 10</h3>
 <img src="{prefix}.fpr10.{suffix}"/>
-
-<h3>Precision-Recall Curve</h3>
-<img src="{prefix}.prc.{suffix}"/>
 
 <h3>Step Plot of Scores</h3>
 <img src="{prefix}.step.{suffix}"/>
