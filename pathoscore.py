@@ -226,7 +226,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     #plt.tight_layout(h_pad=0.2)
     plt.savefig(prefix + ".stats." + suffix,  bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
-    print(score_methods)
 
     # get the red and blue colors for path, benign
     sns.set_palette(sns.color_palette("Set1", 10))
@@ -435,10 +434,13 @@ ops=["flag"]
 
 def step_plot(vals, ax, **kwargs):
     p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
-    sp = sum(p)
-    p = [float(x) / sp for x in p]
+    if p[0] > 2 * p[1:].max():
+        ax.set_yscale('log', basey=2)
+        ax.get_yaxis().get_major_formatter().labelOnlyBase = False
+        ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
+    p = list(p)
     p.append(p[-1])
-    with_p = p_edges[-1] - p_edges[0]
     ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
 
 
