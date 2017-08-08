@@ -196,7 +196,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
         b.set_color(c)
 
-    plt.xticks(xps, score_methods, rotation=30)
+    plt.xticks(xps, score_methods, rotation=30, ha='right')
     plt.ylabel('True positive rate')
     plt.title('TPR at FPR 10')
 
@@ -218,7 +218,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     for i, sc in enumerate(score_counts):
         shapes.append(plt.bar(inds, sc, width, bottom=bottom, color=bar_colors[i], label=labels[i])[0])
         bottom += sc
-    plt.xticks(np.array(inds) + 0.15, score_methods, rotation=30)
+    plt.xticks(np.array(inds), score_methods, rotation=30, ha='right')
     sns.despine()
     plt.ylabel('Variants')
     #ph = [plt.plot([],marker="", ls="")[0]]*2
@@ -260,13 +260,12 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 def plot_enrichment(score_methods, scored, prefix, suffix):
     plt.close()
     plt.figure(figsize=(WIDTH, 4))
-    plt.yscale("log", basey=2)
-    enrichment10 = {}
     enrs = {}
     for method in score_methods:
         enrs[method] = []
-        for k in range(10):
-            # 10 times we subsample to get same size for benign
+        np.random.seed()
+        for k in range(20):
+            # k times we subsample to get same size for benign
             # and pathogenic then take average.
             benign, path = scored[method]
             if len(benign) > len(path):
@@ -286,40 +285,28 @@ def plot_enrichment(score_methods, scored, prefix, suffix):
                 n10 +=1
             a10 = a10[:n10]
 
-            # expected is based on the ratio of pathogenic to total
-            # this will be 0.5 now that we are sub-sampling to have
-            # matching numbers of pathogenic and benign
-            exp = len(path) / float(len(path) + len(benign))
             patho10 = float(sum(p == 1 for score, p in a10))
             #observed is based on proportion of top10% of variants that are pathognic
             obs = patho10 / len(a10)
-            enrichment10[method] = (obs / exp, binom_test(patho10, len(a10), p=exp))
-            enrs[method].append(enrichment10[method][0])
+            enrs[method].append(obs)
     enr_means = [np.mean(enrs[method]) for method in score_methods]
     enr_stds = [np.std(enrs[method]) for method in score_methods]
-    xps = np.arange(len(enrichment10))
-    bar_list = plt.bar(xps, enr_means, align='center')
+    xps = np.arange(len(enr_means))
+    bar_list = plt.bar(xps, enr_means, align='center', yerr=enr_stds)
     for b, c in zip(bar_list, sns.color_palette()):
         b.set_color(c)
     ax = plt.gca()
-    ax.axhline(y=1, lw=2, color='#aaaaaa', zorder=-1, ls='--')
     ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     ax.get_yaxis().get_major_formatter().labelOnlyBase = False
-    _, ymax = (ax.get_ylim())
     # this was used to put text at top of bars and handle going below 0.
     for i, b in enumerate(bar_list):
-        height = 0.005 * ymax + b.get_height()
-        label = "%.2f" % enr_means[i]
+        height = 0.005 * 2 + b.get_height()
+        label = "%.3f" % enr_means[i]
         ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
-    plt.xticks(xps, score_methods, rotation=30)
-    plt.ylabel('Odds-ratio (pathogenic / benign)')
-    plt.title('Enrichment for pathogenic variants in top 100 scores (log2 y-scale)')
+    plt.xticks(np.array(xps), score_methods, rotation=30, ha='right')
+    plt.ylabel('Proportion pathogenic')
+    plt.title('Enrichment for pathogenic variants in top 100 scores')
     plt.tight_layout()
-
-    ymax2=int(0.5 + ymax)
-    while ymax2 < ymax:
-        ymax2 += 0.25
-    plt.ylim(ymax=ymax2)
     sns.despine()
 
     plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
@@ -427,7 +414,7 @@ ops=["flag"]
         print(d)
 
 def step_plot(vals, ax, **kwargs):
-    p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
+    p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()], normed=True)
     if p[0] > 2 * p[1:].max():
         ax.set_yscale('log', basey=2)
         ax.get_yaxis().get_major_formatter().labelOnlyBase = False
