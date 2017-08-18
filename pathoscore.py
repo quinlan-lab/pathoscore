@@ -155,7 +155,11 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         auc_score = auc(fpr, tpr)
         tpr10[f] = getTPR(fpr, tpr, 0.1001, show=f=="pp2hdiv")
 
-        plt.plot(fpr, tpr, label="%-12s (%.2f)" % (f, auc_score))
+        ji = np.argmax(tpr - fpr)
+        J = tpr[ji] - fpr[ji]
+        plt.plot(fpr, tpr, label="%-12s (%.2f, %.2f)" % (f, auc_score, J))
+        plt.plot([fpr[ji]], [tpr[ji]], 'ko')
+
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
 
     # order is scored path, benign then unscored path, benign
@@ -174,7 +178,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    legend = plt.legend(loc="lower right", title="%-12s (AUC)" % "method",
+    legend = plt.legend(loc="lower right", title="%-12s (AUC, J)" % "method",
             handletextpad=1)
     plt.setp(legend.texts, family='monospace')
     if title:
