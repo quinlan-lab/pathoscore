@@ -115,6 +115,7 @@ Currently we have:
 
 + clinvar pathogenics are either `Pathogenic` or `Likely-Pathogenic` and variants with uncertainty are removed.
 + clinvar benigns are either `Benign` or `Likely-Benign` and variants with uncertainty are removed.
++ clinvar variants where there is an SSR field are removed because they are suspected false positives due to paralogy or computational/sequencing error
 
 ### samocha
 

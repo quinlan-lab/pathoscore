@@ -32,6 +32,8 @@ for v in vcf:
     # exclude things with questionable review status
     crs = v.INFO.get('CLNREVSTAT', '').lower()
     if crs in exclude or any(c in exclude for c in crs.split(",")): continue
+    # we filter this out as well, because it indicates a potential false positive variant
+    if v.INFO.get('SSR', ''): continue
     info = v.INFO
     for k, _ in info:
         if k == 'CLNSIG': continue
