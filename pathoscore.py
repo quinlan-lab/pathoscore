@@ -458,7 +458,7 @@ if __name__ == "__main__":
     pan.add_argument("--prefix", default="pathoscore", help="prefix for output files")
     pan.add_argument("--conf", help="optional vcfanno conf file that will also be used for annotation")
     pan.add_argument("--lua", help="optional path to lua file if it's needed by the --conf argument")
-    pan.add_argument("--scores", "-s", action="append", help="format of path:name:field:op e.g. some.bed:myscore:4:self or cadd.vcf:cadd:PHRED:concat that give the path of the annotation file, the name in the output, and the column in the input respectively. may be specified multiple times. op is one of those specified here: https://github.com/brentp/vcfanno#operations")
+    pan.add_argument("--scores", "-s", default=[], action="append", help="format of path:name:field:op e.g. some.bed:myscore:4:self or cadd.vcf:cadd:PHRED:concat that give the path of the annotation file, the name in the output, and the column in the input respectively. may be specified multiple times. op is one of those specified here: https://github.com/brentp/vcfanno#operations")
     pan.add_argument("query_vcf", help="vcf to annotate")
 
     ### evaluation ###
