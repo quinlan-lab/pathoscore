@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 import seaborn as sns
+from sklearn.preprocessing import minmax_scale
 sns.set_style('white')
 
 __version__ = "0.1.2"
@@ -141,6 +142,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.figure(figsize=(WIDTH, 6))
 
     tpr10 = {}
+    jcurves = {}
     for f in score_methods:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
@@ -155,9 +157,12 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         auc_score = auc(fpr, tpr)
         tpr10[f] = getTPR(fpr, tpr, 0.1001, show=f=="pp2hdiv")
 
+
         ji = np.argmax(tpr - fpr)
         J = tpr[ji] - fpr[ji]
-        plt.plot(fpr, tpr, label="%-12s (%.2f, %.2f)" % (f, auc_score, J))
+        score_at_maxJ = thresh[ji]
+        jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
+        plt.plot(fpr, tpr, label="%s (%.2f, %.2f)" % (f, auc_score, J))
         plt.plot([fpr[ji]], [tpr[ji]], 'ko')
 
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
@@ -178,38 +183,26 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    legend = plt.legend(loc="lower right", title="%-12s (AUC, J)" % "method",
-            handletextpad=1)
-    plt.setp(legend.texts, family='monospace')
+    legend = plt.legend(loc="lower right", title="%s (AUC, max J)" % "method", handletextpad=1)
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc." + suffix)
     plt.close()
 
-    plot_enrichment(score_methods, scored, prefix, suffix)
+    for f in score_methods:
+      jc, cutoff, thresh = jcurves[f]
+      idx = np.argmax(jc)
+      xs = minmax_scale(thresh)
+      J = jc[idx]
+      plt.plot(xs, jc, label="%s (%.2f @ %.2f)" % (f, J, cutoff))
+      plt.plot([xs[idx]], [jc[idx]], 'ko')
 
-    plt.figure(figsize=(WIDTH, 4))
-    tps = [tpr10[f] for f in score_methods]
-    xps = np.arange(len(tps))
-    bar_list = plt.bar(xps, tps, align='center', color=bar_colors[0])
-    ymax, _ = plt.ylim()
-    ax = plt.gca()
-    for i, (b, c) in enumerate(zip(bar_list, sns.color_palette())):
-        height = 0.005 * ymax + b.get_height()
-        label = "%.2f" % tps[i]
-        ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
-        b.set_color(c)
-
-    plt.xticks(xps, score_methods, rotation=30, ha='right')
-    plt.ylabel('True positive rate')
-    plt.title('TPR at FPR 10')
-
-    plt.tight_layout()
-    plt.xlim(xmin=-0.5, xmax=len(tps) - 0.5)
     sns.despine()
-    plt.savefig(prefix + ".fpr10." + suffix)
+    plt.ylabel('J-score')
+    plt.xlabel('Normalized score')
+    leg = plt.legend(title="method (max-J @ score)", bbox_to_anchor=(1, 1))
+    plt.savefig(prefix + ".J." + suffix, bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
-
 
     # histogram of scored/unscored by pathogenic/benign
 
@@ -261,61 +254,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.savefig(prefix + ".step." + suffix)
     write_html(prefix, scorable, title, suffix)
 
-def plot_enrichment(score_methods, scored, prefix, suffix):
-    plt.close()
-    plt.figure(figsize=(WIDTH, 4))
-    enrs = {}
-    for method in score_methods:
-        enrs[method] = []
-        np.random.seed()
-        for k in range(20):
-            # k times we subsample to get same size for benign
-            # and pathogenic then take average.
-            benign, path = scored[method]
-            if len(benign) > len(path):
-                np.random.shuffle(benign)
-                benign = benign[:len(path)]
-            elif len(path) > len(benign):
-                np.random.shuffle(path)
-                path = path[:len(benign)]
-
-            n10 = 100
-            # take the top-most benign and pathogenic separately
-            # then take the top of combined and track which are benign and pathogenic
-            a10 = sorted([(b, 0) for b in benign] + [(p, 1) for p in path], reverse=True)
-            # proceed past the lowest score until we see a different value
-            lowest_score = a10[n10-1][0]
-            while n10 < len(a10) and a10[n10][0] == lowest_score:
-                n10 +=1
-            a10 = a10[:n10]
-
-            patho10 = float(sum(p == 1 for score, p in a10))
-            #observed is based on proportion of top10% of variants that are pathognic
-            obs = patho10 / len(a10)
-            enrs[method].append(obs)
-    enr_means = [np.mean(enrs[method]) for method in score_methods]
-    enr_stds = [np.std(enrs[method]) for method in score_methods]
-    xps = np.arange(len(enr_means))
-    bar_list = plt.bar(xps, enr_means, align='center', yerr=enr_stds)
-    for b, c in zip(bar_list, sns.color_palette()):
-        b.set_color(c)
-    ax = plt.gca()
-    ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.get_yaxis().get_major_formatter().labelOnlyBase = False
-    # this was used to put text at top of bars and handle going below 0.
-    for i, b in enumerate(bar_list):
-        height = 0.005 * 2 + b.get_height()
-        label = "%.3f" % enr_means[i]
-        ax.text(b.get_x() + b.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
-    plt.xticks(np.array(xps), score_methods, rotation=30, ha='right')
-    plt.ylabel('Proportion pathogenic')
-    plt.title('Enrichment for pathogenic variants in top 100 scores')
-    plt.tight_layout()
-    sns.despine()
-
-    plt.xlim(xmin=-0.5, xmax=len(score_methods) - 0.5)
-    plt.savefig(prefix + ".enr." + suffix)
-
 def write_html(prefix, scorable, title=None, suffix="png"):
     import datetime
     fh = open(prefix + ".overview.html", "w")
@@ -340,14 +278,11 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 <h3>Distribution of variants scored</h3>
 <img src="{prefix}.stats.{suffix}"/>
 
-<h3>Pathogenic enrichment in top 100 scores</h3>
-<img src="{prefix}.enr.{suffix}"/>
-
 <h3>Receiver Operating Characteristic Curve</h3>
 <img src="{prefix}.roc.{suffix}"/>
 
-<h3>True positive rate at FPR == 10</h3>
-<img src="{prefix}.fpr10.{suffix}"/>
+<h3>Youden's J Statistic</h3>
+<img src="{prefix}.J.{suffix}"/>
 
 <h3>Step Plot of Scores</h3>
 <img src="{prefix}.step.{suffix}"/>
