@@ -80,6 +80,30 @@ It uses the columns specified via `-s` and `-i` as the scores.
 
 `-s` is for fields where higher scores are more constrained.
 
+Output
+------
+
+An example ROC curve for the Clinvar truth-set looks like this:
+
+![roc](https://user-images.githubusercontent.com/1739/29724634-6b730c44-8986-11e7-8b82-4341edcb3f0a.png "roc")
+
+The point in the plot shows the max [J Statistic](https://en.wikipedia.org/wiki/Youden%27s_J_statistic) which can be
+summarized as the point in each curve where the vertical distance to the Y=X line is maximized. 
+This has its highest possible value at an FPR of 0 so there is an implicit penalty for having a high TPR at a high-ish
+FPR.
+
+We also report the full distrubtion of J statistics:
+
+
+![J](https://user-images.githubusercontent.com/1739/29724633-6b72ee30-8986-11e7-9e1d-1033392e2914.png "J")
+
+finally, we report the proportion of *benign* and *pathogenic* variants scored in a truth-set:
+
+
+![scores](https://user-images.githubusercontent.com/1739/29724635-6b72f308-8986-11e7-89bb-3e86fc16fab7.png "scores")
+
+These plots, along with the score-distributions for each method for pathogenic and benign, are aggregated into a single
+HTML report.
 
 Install
 -------
