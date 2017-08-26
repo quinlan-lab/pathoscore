@@ -204,6 +204,31 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.savefig(prefix + ".J." + suffix, bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
 
+    # histogram of J scores.
+    Js = []
+    for f in score_methods:
+      jc, cutoff, thresh = jcurves[f]
+      idx = np.argmax(jc)
+      Js.append(jc[idx])
+    inds = 0.1 + np.array(list(range(len(score_methods))))
+    width = 0.72
+    bars = plt.bar(inds, Js)
+    colors = sns.color_palette()
+    ymax, _ = plt.ylim()
+    ax = plt.gca()
+
+    for i, bar in enumerate(bars):
+        bar.set_color(colors[i])
+        label = "%.2f" % Js[i]
+        height = 0.005 * ymax + bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
+
+    plt.xticks(np.array(inds), score_methods, rotation=30, ha='right')
+    sns.despine()
+    plt.ylabel('J-max')
+    plt.savefig(prefix + ".Jbar." + suffix,  bbox_extra_artists=(leg,), bbox_inches='tight')
+    plt.close()
+
     # histogram of scored/unscored by pathogenic/benign
 
     inds = 0.1 + np.array(list(range(len(score_methods))))
@@ -281,7 +306,10 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 <h3>Receiver Operating Characteristic Curve</h3>
 <img src="{prefix}.roc.{suffix}"/>
 
-<h3>Youden's J Statistic</h3>
+<h3>Youden's J Statistic (max)</h3>
+<img src="{prefix}.Jbar.{suffix}"/>
+
+<h3>Youden's J Statistic (distribution)</h3>
 <img src="{prefix}.J.{suffix}"/>
 
 <h3>Step Plot of Scores</h3>
