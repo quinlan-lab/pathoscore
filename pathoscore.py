@@ -113,6 +113,12 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
     print("scorable sites: benign (snp/indel): (%d/%d), pathogenic: (%d/%d)" % tuple(scorable[0] + scorable[1]))
     return methods, scored, unscored, scorable
 
+def get_se(A, B, C, D):
+    L = float(A * B) / (A + B)**3
+    R = float(C * D) / (C + D)**3
+    return np.sqrt(L + R)
+
+
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
 
     bar_colors = sns.color_palette()[:2]
@@ -142,6 +148,19 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         J = tpr[ji] - fpr[ji]
         score_at_maxJ = thresh[ji]
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
+        S = score_at_maxJ = thresh[ji]
+        # naming from Youden
+        # A: true+
+        # B: false-
+        # C: false+
+        # D: true-
+        A = sum(s >= S and t == 1 for s, t in zip(scores, truth))
+        B = sum(s < S and t == 1 for s, t in zip(scores, truth))
+        C = sum(s >= S and t == 0 for s, t in zip(scores, truth))
+        D = sum(s < S and t == 0 for s, t in zip(scores, truth))
+        jse = get_se(A, B, C, D)
+        jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh, jse
+
         plt.plot(fpr, tpr, label="%s (%.2f, %.2f)" % (f, auc_score, J))
         plt.plot([fpr[ji]], [tpr[ji]], 'ko')
 
@@ -169,7 +188,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.close()
 
     for f in score_methods:
-      jc, cutoff, thresh = jcurves[f]
+      jc, cutoff, thresh, se = jcurves[f]
       idx = np.argmax(jc)
       xs = minmax_scale(thresh)
       J = jc[idx]
@@ -184,14 +203,15 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.close()
 
     # histogram of J scores.
-    Js = []
+    Js, errors = [], []
     for f in score_methods:
-      jc, cutoff, thresh = jcurves[f]
+      jc, cutoff, thresh, se = jcurves[f]
+      errors.append(se)
       idx = np.argmax(jc)
       Js.append(jc[idx])
     inds = 0.1 + np.array(list(range(len(score_methods))))
     width = 0.72
-    bars = plt.bar(inds, Js)
+    bars = plt.bar(inds, Js, yerr=errors, error_kw=dict(capsize=6))
     colors = sns.color_palette()
     ymax, _ = plt.ylim()
     ax = plt.gca()
@@ -200,7 +220,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         bar.set_color(colors[i])
         label = "%.2f" % Js[i]
         height = 0.005 * ymax + bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
+        #ax.text(bar.get_x() + bar.get_width()/2, height, label, ha='center', va='bottom', zorder=10)
 
     plt.xticks(np.array(inds), score_methods, rotation=30, ha='right')
     sns.despine()
