@@ -113,23 +113,6 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
     print("scorable sites: benign (snp/indel): (%d/%d), pathogenic: (%d/%d)" % tuple(scorable[0] + scorable[1]))
     return methods, scored, unscored, scorable
 
-def getTPR(fpr, tpr, at=0.1001, show=False):
-        idx = np.searchsorted(fpr, at, side="left")
-        idx1 = np.searchsorted(fpr, at, side="right")
-        if fpr[idx1] == 1:
-            idx -= 1
-            idx1 -= 1
-        f0, f1 = fpr[idx], fpr[idx1]
-        t0, t1 = tpr[idx], tpr[idx1]
-        if f0 > at:
-            return t0 * 0.1 / f0
-
-        if show:
-            print(t0, t1, f0, f1)
-        dists = [abs(f - at) for f in (f0, f1)]
-        sd = sum(dists)
-        return float(t0 * dists[0] / sd + t1 * dists[1] / sd)
-
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
 
     bar_colors = sns.color_palette()[:2]
@@ -141,7 +124,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         sns.set_palette(sns.color_palette("Vega20", 20))
     plt.figure(figsize=(WIDTH, 6))
 
-    tpr10 = {}
     jcurves = {}
     for f in score_methods:
         if len(scored[f][0]) == 0:
@@ -155,8 +137,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
         fpr, tpr, thresh = roc_curve(truth, scores, pos_label=1, drop_intermediate=True)
         auc_score = auc(fpr, tpr)
-        tpr10[f] = getTPR(fpr, tpr, 0.1001, show=f=="pp2hdiv")
-
 
         ji = np.argmax(tpr - fpr)
         J = tpr[ji] - fpr[ji]
@@ -176,7 +156,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         ]
     labels = ['scored pathogenic', 'scored benign', 'unscored pathogenic', 'unscored benign']
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
-    plt.axvline(x=0.1, color='#444444', alpha=0.6, zorder=-1, lw=2)
     sns.despine()
 
     plt.xlim(-0.004, 1)
