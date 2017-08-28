@@ -162,7 +162,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.ylim(0, 1)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    legend = plt.legend(loc="lower right", title="%s (AUC, max J)" % "method", handletextpad=1)
+    legend = plt.legend(loc="lower right", title="%s (AUC, J index)" % "method", handletextpad=1)
     if title:
         plt.title(title)
     plt.savefig(prefix + ".roc." + suffix)
@@ -179,7 +179,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     sns.despine()
     plt.ylabel('J-score')
     plt.xlabel('Normalized score')
-    leg = plt.legend(title="method (max-J @ score)", bbox_to_anchor=(1, 1))
+    leg = plt.legend(title="method (J-index @ score)", bbox_to_anchor=(1, 1))
     plt.savefig(prefix + ".J." + suffix, bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
 
@@ -204,7 +204,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     plt.xticks(np.array(inds), score_methods, rotation=30, ha='right')
     sns.despine()
-    plt.ylabel('J-max')
+    plt.ylabel('J-index')
     plt.savefig(prefix + ".Jbar." + suffix,  bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
 
@@ -285,7 +285,7 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 <h3>Receiver Operating Characteristic Curve</h3>
 <img src="{prefix}.roc.{suffix}"/>
 
-<h3>Youden's J Statistic (max)</h3>
+<h3>Youden's J Statistic</h3>
 <img src="{prefix}.Jbar.{suffix}"/>
 
 <h3>Youden's J Statistic (distribution)</h3>
