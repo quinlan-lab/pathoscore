@@ -1,0 +1,2 @@
+REVEL or "rare exome variant ensemble learner" is an ensemble method for predicting the pathogenicity of missense variants on the basis of individual tools: MutPred, FATHMM, VEST, PolyPhen, SIFT, PROVEAN, MutationAssessor, MutationTaster, LRT, GERP, SiPhy, phyloP, and phastCons.  REVEL was trained with recently discovered pathogenic (from HGMD, ESP, ARIC, 1KG) and rare neutral missense variants, excluding those previously used to train its constituent tools.
+REFERENCE: http://www.cell.com/ajhg/pdf/S0002-9297(16)30370-6.pdf
