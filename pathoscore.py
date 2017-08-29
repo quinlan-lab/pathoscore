@@ -7,8 +7,10 @@ from cyvcf2 import VCF
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 from scipy.stats import binom_test
 import numpy as np
+import pandas as pd
 import matplotlib
 from matplotlib import pyplot as plt
+from collections import OrderedDict
 import seaborn as sns
 from sklearn.preprocessing import minmax_scale
 sns.set_style('white')
@@ -131,6 +133,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.figure(figsize=(WIDTH, 6))
 
     jcurves = {}
+    output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J'))
     for f in score_methods:
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
@@ -139,6 +142,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
             print("skipping %s because no positives" % f, file=sys.stderr)
             continue
 
+
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
         fpr, tpr, thresh = roc_curve(truth, scores, pos_label=1, drop_intermediate=True)
@@ -146,9 +150,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
         ji = np.argmax(tpr - fpr)
         J = tpr[ji] - fpr[ji]
-        score_at_maxJ = thresh[ji]
-        jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
         S = score_at_maxJ = thresh[ji]
+        jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
+
         # naming from Youden
         # A: true+
         # B: false-
@@ -161,10 +165,27 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         jse = get_se(A, B, C, D)
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh, jse
 
+
+        output['method'].append(f)
+        output['J'].append(J)
+        output['score@J'].append(S)
+        output['se(J)'].append(jse)
+        output['TPR@J'].append(tpr[ji])
+        output['FPR@J'].append(fpr[ji])
+        output['AUC'].append(auc_score)
+        output['TP@J'].append(A)
+        output['FP@J'].append(C)
+        output['TN@J'].append(D)
+        output['FN@J'].append(B)
+
         plt.plot(fpr, tpr, label="%s (%.2f, %.2f)" % (f, auc_score, J))
         plt.plot([fpr[ji]], [tpr[ji]], 'ko')
 
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
+
+    df = pd.DataFrame(output)
+    df.to_csv(prefix + ".csv", index=False, float_format="%.4f")
+    sys.stderr.write("pathoscore: wrote csv file to %s.csv\n" % prefix)
 
     # order is scored path, benign then unscored path, benign
     score_counts = [
