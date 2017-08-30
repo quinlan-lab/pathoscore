@@ -1,7 +1,12 @@
 from __future__ import print_function
 import os
 import sys
+import string
 import math
+import json
+from json import encoder
+encoder.FLOAT_REPR = lambda o: format(o, '.3f')
+
 import toolshed as ts
 from cyvcf2 import VCF
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
@@ -120,6 +125,8 @@ def get_se(A, B, C, D):
     R = float(C * D) / (C + D)**3
     return np.sqrt(L + R)
 
+def color_to_rgb(c):
+    return "rgb(%d, %d, %d)" % (255*c[0], 255*c[1], 255*c[2])
 
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
 
@@ -128,13 +135,37 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     if len(score_methods) <= 10:
         sns.set_palette(sns.color_palette("Vega10", 10))
+        colors = sns.color_palette()
     else:
         sns.set_palette(sns.color_palette("Vega20", 20))
+        colors = sns.color_palette()
     plt.figure(figsize=(WIDTH, 6))
 
     jcurves = {}
+    roc_traces = []
+    roc_traces.append({
+       'x': [0, 1],
+       'y': [0, 1],
+       'mode': 'lines',
+       'showlegend': False,
+       'hoverinfo': 'none',
+       'line': {'color': 'rgb(200, 200, 200)', 'width': 3, 'dash': 'dash'},
+    })
+    jbar_trace = [{
+        'x': score_methods,
+        'y': [],
+        'type': 'bar',
+        'text': score_methods,
+        'marker': {'color': [color_to_rgb(c) for c, m in zip(colors, score_methods)]},
+        'error_y': {
+            'type': 'data',
+            'array': [],
+            'visible': True,
+        }
+    }]
+    jdist_traces = []
     output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J'))
-    for f in score_methods:
+    for i, f in enumerate(score_methods):
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
             continue
@@ -152,6 +183,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         J = tpr[ji] - fpr[ji]
         S = score_at_maxJ = thresh[ji]
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
+        jbar_trace[0]['y'].append(round(J, 3))
 
         # naming from Youden
         # A: true+
@@ -164,6 +196,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         D = sum(s < S and t == 0 for s, t in zip(scores, truth))
         jse = get_se(A, B, C, D)
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh, jse
+        jbar_trace[0]['error_y']['array'].append(round(jse, 3))
 
 
         output['method'].append(f)
@@ -177,8 +210,28 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         output['FP@J'].append(C)
         output['TN@J'].append(D)
         output['FN@J'].append(B)
+        label = "%s (%.2f, %.2f)" % (f, auc_score, J)
+        roc_traces.append({
+           'x': list(np.round(fpr, 3)),
+           'y': list(np.round(tpr, 3)),
+           'text': ["<b>%s</b> FPR: %.2f, TPR: %.2f at score: %.2f" % (f, ff, t, s) for ff,t,s in zip(fpr, tpr, thresh)],
+           'mode': 'lines',
+           'hoverinfo': 'text',
+           'line': {'color': color_to_rgb(colors[i])},
+           'name': label
+        })
+        roc_traces.append({
+          'x': [float(fpr[ji])],
+          'y': [float(tpr[ji])],
+          'marker': {'color': color_to_rgb(colors[i]), 'size': 10},
+          'text': ["<b>J-index</b>: %.2f => FPR: %.2f, TPR: %.2f at score: %.2f" % (S, fpr[ji], tpr[ji], S)],
+          'mode': 'markers',
+           'hoverinfo': 'text',
+          'showlegend': False,
+          'type': 'scatter',
+        })
 
-        plt.plot(fpr, tpr, label="%s (%.2f, %.2f)" % (f, auc_score, J))
+        plt.plot(fpr, tpr, label=label)
         plt.plot([fpr[ji]], [tpr[ji]], 'ko')
 
     plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
@@ -208,13 +261,34 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     plt.savefig(prefix + ".roc." + suffix)
     plt.close()
 
-    for f in score_methods:
+    for i, f in enumerate(score_methods):
       jc, cutoff, thresh, se = jcurves[f]
       idx = np.argmax(jc)
       xs = minmax_scale(thresh)
       J = jc[idx]
-      plt.plot(xs, jc, label="%s (%.2f @ %.2f)" % (f, J, cutoff))
+      label = "%s (%.2f @ %.2f)" % (f, J, cutoff)
+      plt.plot(xs, jc, label=label)
       plt.plot([xs[idx]], [jc[idx]], 'ko')
+      jdist_traces.append({
+           'x': list(np.round(xs, 3)),
+           'y': list(np.round(jc, 3)),
+           'text': ["<b>%s</b> score: %.2f, J: %.2f" % (f,tr, jj ) for tr,jj  in zip(thresh, jc)],
+           'mode': 'lines',
+           'hoverinfo': 'text',
+           'line': {'color': color_to_rgb(colors[i])},
+           'name': label,
+      })
+      jdist_traces.append({
+           'x': [round(xs[idx], 3)],
+           'y': [round(jc[idx], 3)],
+           'text': ["<b>%s</b> score: %.2f, J: %.2f" % (f,xs[idx], jc[idx])],
+           'mode': 'markers',
+           'hoverinfo': 'text',
+           'showlegend': False,
+           'type': 'scatter',
+           'marker': {'color': color_to_rgb(colors[i]), 'size': 10},
+           'name': label,
+      })
 
     sns.despine()
     plt.ylabel('J-score')
@@ -233,7 +307,6 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     inds = 0.1 + np.array(list(range(len(score_methods))))
     width = 0.72
     bars = plt.bar(inds, Js, yerr=errors, error_kw=dict(capsize=6))
-    colors = sns.color_palette()
     ymax, _ = plt.ylim()
     ax = plt.gca()
 
@@ -298,6 +371,21 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     sns.despine()
     plt.savefig(prefix + ".step." + suffix)
     write_html(prefix, scorable, title, suffix)
+
+    tmpl = string.Template(open(os.path.join(os.path.dirname(__file__), "tmpl.html")).read())
+    with open(prefix + ".html", "w") as html:
+        html.write(tmpl.substitute(methods=score_methods,
+                        scored_pathogenic=serialize(score_counts[0]),
+                        scored_benign=serialize(score_counts[1]),
+                        unscored_pathogenic=serialize(score_counts[2]),
+                        unscored_benign=serialize(score_counts[3]),
+                        roc_data=json.dumps(roc_traces),
+                        Jbar_data=json.dumps(jbar_trace),
+                        Jdist_data=json.dumps(jdist_traces),
+                  ))
+
+def serialize(arr):
+    return "[%s]" % ",".join([("%.3f" % v).rstrip("0").rstrip(".") for v in arr])
 
 def write_html(prefix, scorable, title=None, suffix="png"):
     import datetime

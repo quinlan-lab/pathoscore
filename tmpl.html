@@ -1,0 +1,91 @@
+<html>
+
+<head>
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body>
+  <h3>Distribution of variants scored</h3>  
+  <div id="scored-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
+  <h3>Receiver Operating Characteristic Curves</h3>
+  <div id="roc-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
+  <h3>Youden's J Statistic</h3>
+  <div id="J-barplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
+  <h3>Youden's J Distribution</h3>
+  <div id="J-distplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
+
+
+  <script>
+
+var trace1 = {
+  x: $methods,
+  y: $scored_pathogenic,
+  name: 'scored pathogenic',
+  type: 'bar',
+  marker: { color: 'rgb(76, 114, 176)'},
+};
+
+var trace2 = {
+  x: $methods,
+  y: $scored_benign,
+  name: 'scored benign',
+  marker: { color: 'rgb(64, 96, 149)'},
+  type: 'bar'
+};
+
+var trace3 = {
+  x: $methods,
+  y: $unscored_pathogenic,
+  name: 'unscored pathogenic',
+  marker: { color: 'rgb(229, 229, 229)' },
+  type: 'bar'
+};
+
+var trace4 = {
+  x: $methods,
+  y: $unscored_benign,
+  name: 'unscored benign',
+  marker: { color: 'rgb(204, 204, 204)'},
+  type: 'bar'
+}
+
+var data = [trace1, trace2, trace3, trace4];
+var layout = {
+	barmode: 'stack',
+	yaxis: {title: 'Count'},
+}
+Plotly.newPlot('scored-plot-div', data, layout);
+
+var roc_layout = {
+	hovermode: 'closest',
+	width: 900,
+	height: 900,
+	xaxis: {title: 'FPR', domain: [0, 1]},
+	yaxis: {title: 'TPR', domain: [0, 1]},
+	legend: {
+		x: 0.7,
+		y: 0.1
+	},
+}
+Plotly.newPlot('roc-plot-div', $roc_data, roc_layout);
+
+var Jbar_layout = {
+	yaxis: {title: 'J-index'},
+}
+Plotly.newPlot('J-barplot-div', $Jbar_data, Jbar_layout);
+
+var Jdist_layout = {
+	hovermode: 'closest',
+	width: 1100,
+	height: 900,
+	yaxis: {title: 'J-score'},
+	xaxis: {title: 'Normalized score'},
+}
+
+Plotly.newPlot('J-distplot-div', $Jdist_data, Jdist_layout);
+
+  </script>
+</body>
+
+</html>
