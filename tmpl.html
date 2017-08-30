@@ -14,8 +14,8 @@
   <div id="J-barplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Youden's J Distribution</h3>
   <div id="J-distplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
-
-
+  <h3>Distribution of Scores for Pathogenic and Benign</h3>
+  $score_step_divs
   <script>
 
 var trace1 = {
@@ -84,6 +84,8 @@ var Jdist_layout = {
 }
 
 Plotly.newPlot('J-distplot-div', $Jdist_data, Jdist_layout);
+
+$plotly_score_steps
 
   </script>
 </body>

@@ -128,6 +128,19 @@ def get_se(A, B, C, D):
 def color_to_rgb(c):
     return "rgb(%d, %d, %d)" % (255*c[0], 255*c[1], 255*c[2])
 
+def step_traces_to_json(st):
+    score_layout = {
+        "height": 250,
+        "title": "HERE",
+        "yaxis": {"title": "Frequency"},
+    }
+
+    for method, tr in st.items():
+        div = "score_step_%s" % method
+        js = json.dumps(tr)
+        score_layout["title"] = method
+        yield "Plotly.newPlot('%s', %s, %s)" % (div, js, json.dumps(score_layout))
+
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png"):
 
     bar_colors = sns.color_palette()[:2]
@@ -344,25 +357,43 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     # get the red and blue colors for path, benign
     sns.set_palette(sns.color_palette("Set1", 10))
+    pb_colors = sns.color_palette()
     fig, axes = plt.subplots(len(score_methods), figsize=(WIDTH,
         2*len(score_methods)))
     try:
         axes[0]
     except:
         axes = (axes,)
+    step_traces = OrderedDict()
     for i, f in enumerate(score_methods):
+        step_traces[f] = [None, None]
         ax = axes[i]
 
         vals = np.array(scored[f][1])
-        step_plot(vals, ax, label="pathogenic", alpha=0.85)
+        px, py = step_plot(vals, ax, label="pathogenic", alpha=0.85)
+        step_traces[f][0] = {
+           'x': list(np.round(px, 3)),
+           'y': list(np.round(py, 3)),
+           'mode': 'lines',
+           'line': {'color': color_to_rgb(pb_colors[0]), 'shape': 'hv'},
+           'name': "pathogenic",
+        }
 
         vals = np.array(scored[f][0])
-        step_plot(vals, ax, label="benign", alpha=0.85)
+        bx, by = step_plot(vals, ax, label="benign", alpha=0.85)
+        step_traces[f][1] = {
+           'x': list(np.round(bx, 3)),
+           'y': list(np.round(by, 3)),
+           'mode': 'lines',
+           'line': {'color': color_to_rgb(pb_colors[1]), 'shape': 'hv'},
+           'name': "benign",
+        }
 
         ax.set_xlabel(f)
         rng = vals.max() - vals.min()
         ax.set_xlim(vals.min() - 0.01 * rng, vals.max() + 0.01 * rng)
         ax.set_ylabel("Frequency")
+
 
     axes[0].legend(loc='upper left')
     if title:
@@ -371,6 +402,8 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     sns.despine()
     plt.savefig(prefix + ".step." + suffix)
     write_html(prefix, scorable, title, suffix)
+
+    score_step_divs = "\n".join(['<div id="score_step_%s"></div>' % s for s in score_methods])
 
     tmpl = string.Template(open(os.path.join(os.path.dirname(__file__), "tmpl.html")).read())
     with open(prefix + ".html", "w") as html:
@@ -382,6 +415,8 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
                         roc_data=json.dumps(roc_traces),
                         Jbar_data=json.dumps(jbar_trace),
                         Jdist_data=json.dumps(jdist_traces),
+                        score_step_divs=score_step_divs,
+                        plotly_score_steps="\n".join(step_traces_to_json(step_traces)),
                   ))
 
 def serialize(arr):
@@ -498,6 +533,7 @@ def step_plot(vals, ax, **kwargs):
     p = list(p)
     p.append(p[-1])
     ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
+    return p_edges, p
 
 
 def add_eval_args(p):
