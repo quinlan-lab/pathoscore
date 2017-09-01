@@ -1,0 +1,2 @@
+SIFT uses the degree of protein sequence conservation to predict the impact of a missense variant. It uses alignment based method to give prediction scores in the range [0,1]. Values <= 0.05 are predicted to be deleterious, while those > 0.05 are predicted to be tolerated. The columns gathered are "chromosome  location  reference allele  alternative allele  siftScore".  
+REFERENCE:http://genome.cshlp.org/content/11/5/863.full.pdf+html 
