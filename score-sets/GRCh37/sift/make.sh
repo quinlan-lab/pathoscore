@@ -9,4 +9,4 @@ for f in `ls -v ./Human_CHR*.sqlite`; do
     perl query.pl $f | sort --temporary-directory=. -k1,1 -k2,2n
 done ) | bgzip -c > sift.txt.gz
 tabix -b2 -e2 sift.txt.gz
-rm Human*sqlite.gz
+rm Human*sqlite
