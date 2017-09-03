@@ -1,0 +1,2 @@
+ALoFT (annotation of loss-of-function transcripts), is a method to annotate and predict the disease-causing potential of loss-of-function variants. Using data from Mendelian disease-gene discovery projects, ALoFT can distinguish between loss-of-function variants that are deleterious as heterozygotes and those causing disease only in the homozygous state. 
+reference: https://www.nature.com/articles/s41467-017-00443-5
