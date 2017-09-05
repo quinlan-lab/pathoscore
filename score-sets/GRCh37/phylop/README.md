@@ -1,0 +1,2 @@
+PhyloP uses multiple sequence alignments from diverse species to assign per-base P values of conservation. It implements four statistical, phylogenetic tests (a likelihood ratio test, a score test, a test based on exact distributions of numbers of substitutions, and the genomic evolutionary rate profiling test) to detect strong selection sites. The columns gathered are "chromosome  start  end  PhyloPScore".  
+REFERENCE:http://genome.cshlp.org/content/20/1/110.full.pdf+html 
