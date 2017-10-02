@@ -5,14 +5,27 @@ wget http://www.biorxiv.org/highwire/filestream/44323/field_highwire_adjunct_fil
 fi
 python make.py $fname
 
-fasta=/uufs/chpc.utah.edu/common/home/u6000771/bcbio/genomes/Hsapiens/GRCh37/seq/GRCh37.fa
-fasta=/data/human/g1k_v37_decoy.fa
-if [[ ! -e ../Homo_sapiens.GRCh37.82.gff3.gz ]]; then
+gff=../Homo_sapiens.GRCh37.82.gff3.gz
+
+if [[ ! -s $gff ]]; then
     wget ftp://ftp.ensembl.org/pub/grch37/release-84/gff3/homo_sapiens/Homo_sapiens.GRCh37.82.gff3.gz
     mv Homo_sapiens.GRCh37.82.gff3.gz ..
 fi
 
-gff=../Homo_sapiens.GRCh37.82.gff3.gz
+fasta=/uufs/chpc.utah.edu/common/home/u6000771/bcbio/genomes/Hsapiens/GRCh37/seq/GRCh37.fa
+
+if [ ! -s $fasta ]; then
+    fasta=/data/human/g1k_v37_decoy.fa
+fi
+
+if [ ! -s $fasta ]; then
+    fasta=../human_g1k_v37.fasta
+fi
+
+if [ ! -s $fasta ]; then
+    wget -P .. ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/technical/reference/human_g1k_v37.fasta.gz
+    gunzip ../human_g1k_v37.fasta.gz
+fi
 
 sortit() {
     set -euo pipefail
