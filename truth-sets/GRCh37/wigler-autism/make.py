@@ -5,8 +5,8 @@ import pyexcel as pe
 
 path_book = pe.get_book(file_name=sys.argv[1])
 
-bfh = open('eichler.benign.vcf', 'w')
-pfh = open('eichler.pathogenic.vcf', 'w')
+bfh = open('wigler-autism.benign.vcf', 'w')
+pfh = open('wigler-autism.pathogenic.vcf', 'w')
 header = """##fileformat=VCFv4.1
 ##source=pathoscore
 ##reference=GRCh37
