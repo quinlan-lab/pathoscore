@@ -1,5 +1,3 @@
-Pathogenic and benign variants from 
+Pathogenic and benign variants from [Homsy et al, 2015](http://science.sciencemag.org/content/350/6265/1262.full).  For both the CHD (congenital heart disease) cohort variants which we call pathogenic, and the control cohort variants which we call benign, we only use missense or nonsense variants and filter out all synonymous variants.  CHD probands were sequenced with unaffected parents to determine de novo CHD variants, and the patients were enrolled in either the Pediatric Cardiac Genetics Consortium or the Pediatric Heart Network.  The control trios consisted of unaffected parents, and an unaffected sibling from whom the de novos were taken.  These trios came from quartets formed with a proband affected by autism spectrum disorder, taken from the Simons Foundation Autism Research Initiative.
 
 Homsy, Jason, et al. "De novo mutations in congenital heart disease with neurodevelopmental and other congenital anomalies." Science 350.6265 (2015): 1262-1266.
-APA 
-
