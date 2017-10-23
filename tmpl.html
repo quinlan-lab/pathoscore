@@ -3,9 +3,20 @@
 <head>
   <!-- Plotly.js -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <title>pathoscore</title>
 </head>
 
 <body>
+<pre>
+date: $date
+created with <a href=https://github.com/quinlan-lab/pathoscore>pathoscore</a> version: $version
+</pre>
+
+  <p><i>pathoscore</i> evaluates pathogenicity tools and scores.</p>
+
+  In this evaluation, there were <b>$n_pathogenic pathogenic</b> ($path_indel_pct% indels) and <b>$n_benign benign</b>
+  ($benign_indel_pct% indels) variants that could be scored.
+
   <h3>Distribution of variants scored</h3>  
   <div id="scored-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Receiver Operating Characteristic Curves</h3>
@@ -16,6 +27,10 @@
   <div id="J-distplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Distribution of Scores for Pathogenic and Benign</h3>
   $score_step_divs
+
+  <hr />
+  <h3>command</h3>
+  <pre>$command</pre>
   <script>
 
 var trace1 = {

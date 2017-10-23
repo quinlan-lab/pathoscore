@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import sys
+import datetime
 import string
 import math
 import json
@@ -20,7 +21,7 @@ import seaborn as sns
 from sklearn.preprocessing import minmax_scale
 sns.set_style('white')
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 WIDTH = 7
 
@@ -417,6 +418,15 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
                         Jdist_data=json.dumps(jdist_traces),
                         score_step_divs=score_step_divs,
                         plotly_score_steps="\n".join(step_traces_to_json(step_traces)),
+                        command=" ".join(sys.argv),
+                        version=__version__,
+                        date=(datetime.date.today()),
+                        n_benign=sum(scorable[0]),
+                        n_pathogenic=sum(scorable[1]),
+                        path_indel_pct="%.1f" % (100.0*scorable[1][1] /
+                            float(sum(scorable[1]))),
+                        benign_indel_pct="%.1f" % (100.0*scorable[0][1] /
+                            float(sum(scorable[0]))),
                   ))
 
 def serialize(arr):
