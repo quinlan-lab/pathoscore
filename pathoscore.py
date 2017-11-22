@@ -87,11 +87,14 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
                 try:
                     score = float(score)
                 except: # handle multiple alts by recording both
-                    iscores = map(float, score.split(","))
-                    if invert:
-                        score = min(iscores)
-                    else:
-                        score = max(iscores)
+                    try:
+                        iscores = map(float, score.split(","))
+                        if invert:
+                            score = min(iscores)
+                        else:
+                            score = max(iscores)
+                    except ValueError:
+                        score = float('nan')
 
                 if math.isnan(score):
                     unscored[f][is_pathogenic] += 1
