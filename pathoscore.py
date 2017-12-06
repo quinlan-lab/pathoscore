@@ -38,10 +38,11 @@ def infos(path):
 def isfunctional(csqs):
     for csq in csqs.split(","):
         eff = csq.split("|", 2)[0]
-        if eff in ('stop_gained', 'stop_lost', 'start_lost', 'initiator_codon', 'rare_amino_acid',
-                     'missense', 'protein_altering', 'frameshift'):
-            return True
-    return False
+        for c in ('stop_gained', 'stop_lost', 'start_lost', 'initiator_codon', 'rare_amino_acid',
+                     'missense', 'protein_altering', 'frameshift', 'inframe_insertion', 'inframe_deletion'):
+            if c in eff or (('splice_donor' in eff or 'splice_acceptor' in eff) and 'coding_sequence' in eff): 
+                return True
+        return False
 
 def evaluate(vcfs, fields, inverse_fields, include=None, functional=False):
     scored = {}
