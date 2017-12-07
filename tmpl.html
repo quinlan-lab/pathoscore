@@ -1,9 +1,17 @@
 <html>
 
 <head>
-  <!-- Plotly.js -->
+  <!-- Plotly.js and Datatables.js -->
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+  <style type="text/css" class="init">
+    
+  </style>
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
   <title>pathoscore</title>
+
 </head>
 
 <body>
@@ -29,6 +37,10 @@ created with <a href=https://github.com/quinlan-lab/pathoscore>pathoscore</a> ve
   $score_step_divs
 
   <hr />
+  <h3>Clinical Utility for Genes of Interest</h3>
+  <div class="content">
+  <table id="clinical-utility" class="display" width="100%"></table>
+  </div>
   <h3>command</h3>
   <pre>$command</pre>
   <script>
@@ -102,7 +114,16 @@ Plotly.newPlot('J-distplot-div', $Jdist_data, Jdist_layout);
 
 $plotly_score_steps
 
+jQuery(document).ready(function() {
+    jQuery('#clinical-utility').DataTable( {
+        data: $culist,
+        columns: $header
+    } );
+} );
+
   </script>
+
+
 </body>
 
 </html>
