@@ -8,7 +8,7 @@ hard to curate and evaluate.
 
 `pathoscore` is software and datasets that facilitate applying evaluating pathogenicity scores.
 
-The sections below describe the tools
+The sections below describe the tools.
 
 Annotate
 --------
@@ -135,17 +135,29 @@ functional variants.
 
 Currently we have:
 
-### clinvar
+### ClinVar
 
-+ clinvar pathogenics are either `Pathogenic` or `Likely-Pathogenic` and variants with uncertainty are removed.
-+ clinvar benigns are either `Benign` or `Likely-Benign` and variants with uncertainty are removed.
-+ clinvar variants where there is an SSR field are removed because they are suspected false positives due to paralogy or computational/sequencing error
++ ClinVar pathogenics are either `Pathogenic` or `Likely-Pathogenic` and variants with uncertainty are removed.
++ ClinVar benigns are either `Benign` or `Likely-Benign` and variants with uncertainty are removed.
++ ClinVar variants where there is an SSR field are removed because they are suspected false positives due to paralogy or computational/sequencing error
 
-### samocha
+### Samocha
 
 These are from [Kaitlin Samocha's paper](http://www.biorxiv.org/content/early/2017/06/12/148353) on mis-sense contraint.
 
-+ benigns are labelled as `control` in her source file
-+ pathogenics are anything other than control.
++ Benigns are labelled as `control` in her source file.
++ Pathogenics are anything other than control.
 
+### Filtering Pathogenic Variants on Allele Frequency
 
+Some alleged pathogenic variants may appear at high allele frequencies in population databases, and some users may understandably find those variants suspect.  If you would like to filter out variants on allele frequency in a population set.  An example conf file is provided in the repo called [af.conf](scripts/gnomad/af.conf). If you have additional filtering parameters you'd like to specify you can also use a conf file for that as detailed in [vcfanno's repo](https://github.com/brentp/vcfanno).
+
+And then you can run the pathoscore script as below:
+
+```
+python pathoscore.py annotate --scores score-sets/GRCh37/MPC/mpc.txt.gz:MPC:5:max --scores score-sets/GRCh37/REVEL/revel.txt.gz:REVEL:7:max truth-sets/GRCh37/samocha/samocha.pathogenic.vcf.gz --prefix neurodev --conf af.conf
+```
+
+Just make sure that you don't use a file more than once in the conf file, write everything you want to do for each file in a list as shown above.  Additionally, don't use any fields like --scores or --exclude to perform things on a file that is already referenced in the conf file you provide to pathoscore.  It will not work.
+
+For user convenience, under scripts/gnomad, there are make scripts for generating vt normalized, decomposed and BCSQ annotated ExAC v1 and gnomAD VCF files, so that you can filter by allele frequency in those population datasets.
