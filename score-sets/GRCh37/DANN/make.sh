@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # can be used as is with pathoscore.py with --scores score-sets/GRCh37/DANN/DANN_whole_genome_SNVs.tsv.bgz:DANN:5:self
 dann_file="DANN_whole_genome_SNVs.tsv.bgz"
