@@ -84,7 +84,7 @@ def isfunctional(csqs):
                 return True
     return False
 
-def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=[]):
+def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR']):
     scored = {}
     unscored = {}
     scoredbygene = {}
