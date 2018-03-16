@@ -30,7 +30,6 @@ The individual flags are described here:
 
 ### scores
 
-
 The `scores` format is `path:name:column:op` where:
 
 + name becomes the new name in the INFO field.
@@ -39,8 +38,7 @@ The `scores` format is `path:name:column:op` where:
 
 ### exclude
 
-is a population VCF that is use to filter would-be pathogenic variants (as we know that common variants
-can't be pathogenic). This can also be a set of regions to exclude.
+can be a population VCF that is used to filter would-be pathogenic variants (as we know that common variants can't be pathogenic). This can also be a set of regions to exclude, and for user convenience we curated gene sets that the user can filter on such as autosomal dominant genes from Berg et al. (2013) and haploinsufficient genes from Dang et al. (2008).
 
 ### conf
 
@@ -68,6 +66,7 @@ python pathoscore.py evaluate \
     -s exac_ccr \
     -i mpc_regions \
     -s combined \
+    --goi listofgenesofinterest \
     pathogenic.vcf.gz \
     benign.vcf.gz
 ```
@@ -79,6 +78,8 @@ It uses the columns specified via `-s` and `-i` as the scores.
 `-i` indicates that lower scores are more constrained where as 
 
 `-s` is for fields where higher scores are more constrained.
+
+`--goi` is to provide a newline delimited file of genes of interest for a clinical utility calculation.  More information is provided in the [wiki](https://github.com/quinlan-lab/pathoscore/wiki/Clinical-Utility-and-Genes-of-Interest).
 
 Output
 ------

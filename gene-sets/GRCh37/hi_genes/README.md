@@ -1,0 +1,1 @@
+The haploinsufficient gene set comes from Dang et al. (2008): https://www.nature.com/articles/ejhg2008111.  They used text-searching and database-mining on Pubmed and OMIM to extract an annotated list of human haploinsufficient genes, their associated diseases, and functions.  In total there are 299 genes.
