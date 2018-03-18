@@ -141,6 +141,7 @@ Currently we have:
 + ClinVar pathogenics are either `Pathogenic` or `Likely-Pathogenic` and variants with uncertainty are removed.
 + ClinVar benigns are either `Benign` or `Likely-Benign` and variants with uncertainty are removed.
 + ClinVar variants where there is an SSR field are removed because they are suspected false positives due to paralogy or computational/sequencing error
++ We created a version of ClinVar benigns that incorporates gnomAD variants to match the much larger count of ClinVar pathogenics, with the intent of creating an equal-sized set of pathogenics and benigns.  See the [README](truth-sets/GRCh37/clinvar/benchmark/README.md) for those sets for more info.
 
 ### Samocha
 
