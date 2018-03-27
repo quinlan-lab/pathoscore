@@ -84,7 +84,7 @@ def isfunctional(csqs):
                 return True
     return False
 
-def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR']):
+def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=set(['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR'])):
     scored = {}
     unscored = {}
     scoredbygene = {}
@@ -118,8 +118,7 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=[
                 if csq is None or not isfunctional(csq):
                     functional_skipped += 1
                     continue
-            if goi:
-                genes = get_genes(csq)
+            genes = get_genes(csq)
 
             if is_pathogenic and v.INFO.get('_exclude'):
                 common_pathogenic += 1
@@ -130,9 +129,8 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=[
                 score = v.INFO.get(f)
                 if score is None or score == "NA":
                     unscored[f][is_pathogenic] += 1
-                    if goi:
-                        for gene in genes:
-                            unscoredbygene[f][gene][is_pathogenic] += 1
+                    for gene in genes:
+                        unscoredbygene[f][gene][is_pathogenic] += 1
                     continue
                 try:
                     score = float(score)
@@ -148,17 +146,15 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=[
 
                 if math.isnan(score):
                     unscored[f][is_pathogenic] += 1
-                    if goi:
-                        for gene in genes:
-                            unscoredbygene[f][gene][is_pathogenic] += 1
+                    for gene in genes:
+                        unscoredbygene[f][gene][is_pathogenic] += 1
                     continue
                 if invert:
                     score = -score
 
                 scored[f][is_pathogenic].append(score)
-                if goi:
-                    for gene in genes:
-                        scoredbygene[f][gene][is_pathogenic].append(score)
+                for gene in genes:
+                    scoredbygene[f][gene][is_pathogenic].append(score)
 
     methods = [f for f, _ in fields]
     for f in methods:
@@ -168,13 +164,12 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=[
                 imax = np.max(arr[~np.isinf(arr)])
                 arr[np.isinf(arr)] = imax
                 scored[f][i] = list(arr)
-            if goi:
-                for gene in genes:
-                    arr = scoredbygene[f][gene][i]
-                    if np.any(np.isinf(arr)):
-                        imax = np.max(arr[~np.isinf(arr)])
-                        arr[np.isinf(arr)] = imax
-                        scoredbygene[f][gene][i] = list(arr)
+            for gene in genes:
+                arr = scoredbygene[f][gene][i]
+                if np.any(np.isinf(arr)):
+                    imax = np.max(arr[~np.isinf(arr)])
+                    arr[np.isinf(arr)] = imax
+                    scoredbygene[f][gene][i] = list(arr)
 
     print("unscored:", unscored)
     print("scored:", {k: {'benign': len(v[0]), 'pathogenic': len(v[1])} for k, v in scored.items()})
@@ -208,7 +203,7 @@ def step_traces_to_json(st):
         score_layout["title"] = method
         yield "Plotly.newPlot('%s', %s, %s)" % (div, js, json.dumps(score_layout))
 
-def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png", goi=[]):
+def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png", goi=set(['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR'])):
 
     bar_colors = sns.color_palette()[:2]
     bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
@@ -263,8 +258,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         ji = np.argmax(tpr - fpr)
         J = tpr[ji] - fpr[ji]
         S = score_at_maxJ = thresh[ji]
-        if goi:
-            jindices[f] = S
+        jindices[f] = S
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
         jbar_trace[0]['y'].append(round(J, 3))
 
@@ -662,18 +656,18 @@ if __name__ == "__main__":
     if a.command == "annotate":
         annotate(a)
     elif a.command == "evaluate":
-        methods, scored, unscored, scorable, scoredbygene, unscoredbygene = evaluate(a.query_vcf,
-                a.score_columns, a.inverse_score_columns, include=a.include,
-                functional=a.functional, goi=a.goi)
-        jindices, score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, a.goi)
         if a.goi:
             goi = set()
             with open(a.goi, "r") as f:
                 for line in f:
                     goi.add(line.strip())
-            cu, header = clinical_utility(scoredbygene, unscoredbygene, jindices, a.prefix, goi)
-            plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
         else:
-            plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix)
+            goi = set(['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR'])
+        methods, scored, unscored, scorable, scoredbygene, unscoredbygene = evaluate(a.query_vcf,
+                a.score_columns, a.inverse_score_columns, include=a.include,
+                functional=a.functional, goi=goi)
+        jindices, score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, goi)
+        cu, header = clinical_utility(scoredbygene, unscoredbygene, jindices, a.prefix, goi)
+        plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
 
 
