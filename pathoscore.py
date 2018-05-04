@@ -11,7 +11,7 @@ import itertools
 
 import toolshed as ts
 from cyvcf2 import VCF
-from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, f1_score
 from scipy.stats import binom_test
 import numpy as np
 import pandas as pd
@@ -205,6 +205,8 @@ def step_traces_to_json(st):
 
 def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="png", goi=set(['BRCA2','BRCA1','SCN1A','LDLR','MLH1','MSH2','DMD','ATM','FBN1','CFTR'])):
 
+    pr_base=(scorable[1][0]+scorable[1][1])/float(scorable[0][0]+scorable[0][1]+scorable[1][0]+scorable[1][1])
+
     bar_colors = sns.color_palette()[:2]
     bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
 
@@ -214,7 +216,8 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     else:
         sns.set_palette(sns.color_palette("Vega20", 20))
         colors = sns.color_palette()
-    plt.figure(figsize=(WIDTH, 6))
+    fig, ax = plt.subplots(figsize=(WIDTH, 6))
+    fig2, ax2 = plt.subplots(figsize=(WIDTH, 6))
 
     jcurves = {}
     roc_traces = []
@@ -224,7 +227,16 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
        'mode': 'lines',
        'showlegend': False,
        'hoverinfo': 'none',
-       'line': {'color': 'rgb(200, 200, 200)', 'width': 3, 'dash': 'dash'},
+       'line': {'color': 'rgb(200, 200, 200)', 'width': 3, 'dash': 'dash'}
+    })
+    pr_traces = []
+    pr_traces.append({
+    'x': [0, 1],
+    'y': [pr_base, pr_base],
+    'mode': 'lines',
+    'showlegend': False,
+    'hoverinfo': 'none',
+    'line': {'color': 'rgb(200, 200, 200)', 'width': 3, 'dash': 'dash'}
     })
     jbar_trace = [{
         'x': score_methods,
@@ -253,7 +265,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         scores = scored[f][0] + scored[f][1]
         truth = ([0] * len(scored[f][0])) + ([1] * len(scored[f][1]))
         fpr, tpr, thresh = roc_curve(truth, scores, pos_label=1, drop_intermediate=True)
+        precision, recall, thresholds = precision_recall_curve(truth, scores, pos_label=1)
         auc_score = auc(fpr, tpr)
+        ap = average_precision_score(truth, scores, average = 'macro')
 
         ji = np.argmax(tpr - fpr)
         J = tpr[ji] - fpr[ji]
@@ -261,6 +275,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         jindices[f] = S
         jcurves[f] = tpr + (1 - fpr) - 1, score_at_maxJ, thresh
         jbar_trace[0]['y'].append(round(J, 3))
+
+        y_pred = [1 if y > S else 0 for y in scores]
+        f1 = f1_score(truth, y_pred, average = 'binary')
 
         # naming from Youden
         # A: true+
@@ -287,7 +304,8 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         output['FP@J'].append(C)
         output['TN@J'].append(D)
         output['FN@J'].append(B)
-        label = "%s (%.2f, %.2f)" % (f, auc_score, J)
+        label = "%s (AUC: %.2f, Peak J-score: %.2f)" % (f, auc_score, J)
+        label2 = "%s (%.2f, %.2f)" % (f, auc_score, J)
         roc_traces.append({
            'x': list(np.round(fpr, 3)),
            'y': list(np.round(tpr, 3)),
@@ -301,17 +319,42 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
           'x': [float(fpr[ji])],
           'y': [float(tpr[ji])],
           'marker': {'color': color_to_rgb(colors[i]), 'size': 10},
-          'text': ["<b>J-index</b>: %.2f => FPR: %.2f, TPR: %.2f at score: %.2f" % (S, fpr[ji], tpr[ji], S)],
+          'text': ["<b>J-index</b>: %.2f => FPR: %.2f, TPR: %.2f at score: %.2f" % (J, fpr[ji], tpr[ji], S)],
           'mode': 'markers',
            'hoverinfo': 'text',
           'showlegend': False,
           'type': 'scatter',
         })
+        label3 = "%s (F1 score @ Peak J: %.2f)" % (f, f1)
+        label4 = "%s (%.2f)" % (f, f1)
+        pr_traces.append({
+           'x': list(np.round(recall, 3)),
+           'y': list(np.round(precision, 3)),
+           'text': ["<b>%s</b> Recall: %.2f, Precision: %.2f at score: %.2f" % (f, ff, t, s) for ff,t,s in zip(recall, precision, thresholds)],
+           'mode': 'lines',
+           'hoverinfo': 'text',
+           'line': {'color': color_to_rgb(colors[i])},
+           'name': label3
+        })
+        ind = list(recall).index(tpr[ji])
+        pr_traces.append({
+          'x': [float(recall[ind])],
+          'y': [float(precision[ind])],
+          'marker': {'color': color_to_rgb(colors[i]), 'size': 10},
+          'text': ["<b>F1 score</b>: %.2f => Recall: %.2f, Precision: %.2f at score: %.2f" % (f1, recall[ind], precision[ind], S)],
+          'mode': 'markers',
+           'hoverinfo': 'text',
+          'showlegend': False,
+          'type': 'scatter',
+        })
+        ax.plot(fpr, tpr, label=label2)
+        ax.plot([fpr[ji]], [tpr[ji]], 'ko')
+        ax2.plot(recall, precision, label=label4)
+        ax2.plot(recall[ind], precision[ind], 'ko')
 
-        plt.plot(fpr, tpr, label=label)
-        plt.plot([fpr[ji]], [tpr[ji]], 'ko')
-
-    plt.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
+    ax.plot([0, 1], [0, 1], linestyle='--', color='#777777', zorder=-1)
+    ax2.axhline(pr_base, linestyle='--', color='#777777', zorder=-1)
+    #baseline for precision recall is dependent on P:N ratio
 
     df = pd.DataFrame(output)
     df.to_csv(prefix + ".csv", index=False, float_format="%.4f")
@@ -328,14 +371,20 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     pct_variants_scored = 100.0 *(score_counts[0] + score_counts[1]).astype(float) / np.array(score_counts).sum(axis=0)
     sns.despine()
 
-    plt.xlim(-0.004, 1)
-    plt.ylim(0, 1)
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    legend = plt.legend(loc="lower right", title="%s (AUC, J index)" % "method", handletextpad=1)
+    ax.set_xlim(-0.004, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax2.set_xlim(-0.004, 1)
+    ax2.set_ylim(0, 1)
+    ax2.set_xlabel("Recall")
+    ax2.set_ylabel("Precision")
+    legend = ax.legend(loc="lower right", title="%s (AUC, J index)" % "method", handletextpad=1)
+    legend = ax2.legend(loc="lower right", title="%s (F1 Score @ Peak J)" % "method", handletextpad=1)
     if title:
         plt.title(title)
-    plt.savefig(prefix + ".roc." + suffix)
+    fig.savefig(prefix + ".roc." + suffix)
+    fig2.savefig(prefix + ".pr." + suffix)
     plt.close()
 
     for i, f in enumerate(score_methods):
@@ -343,7 +392,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
       idx = np.argmax(jc)
       xs = minmax_scale(thresh)
       J = jc[idx]
-      label = "%s (%.2f @ %.2f)" % (f, J, cutoff)
+      label = "%s (Peak J: %.2f @ score: %.2f)" % (f, J, cutoff)
       plt.plot(xs, jc, label=label)
       plt.plot([xs[idx]], [jc[idx]], 'ko')
       jdist_traces.append({
@@ -382,7 +431,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
       idx = np.argmax(jc)
       Js.append(jc[idx])
     inds = 0.1 + np.array(list(range(len(score_methods))))
-    width = 0.72
+    width = 3.72
     bars = plt.bar(inds, Js, yerr=errors, error_kw=dict(capsize=6))
     ymax, _ = plt.ylim()
     ax = plt.gca()
@@ -470,7 +519,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     score_step_divs = "\n".join(['<div id="score_step_%s"></div>' % s for s in score_methods])
 
 
-    return jindices, score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces
+    return jindices, score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces
 
 def serialize(arr):
     return "[%s]" % ",".join([("%.3f" % v).rstrip("0").rstrip(".") for v in arr])
@@ -501,6 +550,9 @@ and <b>{benign} benign</b> ({benign_pct_indel:.1f}% indels) variants that could 
 
 <h3>Receiver Operating Characteristic Curve</h3>
 <img src="{prefix}.roc.{suffix}"/>
+
+<h3>Precision-Recall Curve</h3>
+<img src="{prefix}.pr.{suffix}"/>
 
 <h3>Youden's J Statistic</h3>
 <img src="{prefix}.Jbar.{suffix}"/>
@@ -588,7 +640,7 @@ def step_plot(vals, ax, **kwargs):
     ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
     return p_edges, p
 
-def plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, prefix, cu=[], header=[]):
+def plotly_html(score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, prefix, cu=[], header=[]):
     tmpl = string.Template(open(os.path.join(os.path.dirname(__file__), "tmpl.html")).read())
     with open(prefix + ".html", "w") as html:
         html.write(tmpl.substitute(methods=score_methods,
@@ -597,6 +649,7 @@ def plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_trace
                         unscored_pathogenic=serialize(score_counts[2]),
                         unscored_benign=serialize(score_counts[3]),
                         roc_data=json.dumps(roc_traces),
+                        pr_data=json.dumps(pr_traces),
                         Jbar_data=json.dumps(jbar_trace),
                         Jdist_data=json.dumps(jdist_traces),
                         score_step_divs=score_step_divs,
@@ -666,8 +719,8 @@ if __name__ == "__main__":
         methods, scored, unscored, scorable, scoredbygene, unscoredbygene = evaluate(a.query_vcf,
                 a.score_columns, a.inverse_score_columns, include=a.include,
                 functional=a.functional, goi=goi)
-        jindices, score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, goi)
+        jindices, score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, goi)
         cu, header = clinical_utility(scoredbygene, unscoredbygene, jindices, a.prefix, goi)
-        plotly_html(score_methods, score_counts, roc_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
+        plotly_html(score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
 
 

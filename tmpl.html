@@ -29,6 +29,8 @@ created with <a href=https://github.com/quinlan-lab/pathoscore>pathoscore</a> ve
   <div id="scored-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Receiver Operating Characteristic Curves</h3>
   <div id="roc-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
+  <h3>Precision-Recall Curves</h3>
+  <div id="pr-plot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Youden's J Statistic</h3>
   <div id="J-barplot-div"><!-- Plotly chart will be drawn inside this DIV --></div>
   <h3>Youden's J Distribution</h3>
@@ -96,6 +98,19 @@ var roc_layout = {
 	},
 }
 Plotly.newPlot('roc-plot-div', $roc_data, roc_layout);
+
+var pr_layout = {
+	hovermode: 'closest',
+	width: 900,
+	height: 900,
+	xaxis: {title: 'Recall', domain: [0, 1]},
+	yaxis: {title: 'Precision', domain: [0, 1]},
+	legend: {
+		x: 0.1,
+		y: 0.1
+	},
+}
+Plotly.newPlot('pr-plot-div', $pr_data, pr_layout);
 
 var Jbar_layout = {
 	yaxis: {title: 'J-index'},
