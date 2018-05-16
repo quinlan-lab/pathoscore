@@ -629,12 +629,8 @@ ops=["flag"]
         print(d)
 
 def step_plot(vals, ax, **kwargs):
-    p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()], normed=True)
-    if p[0] > 2 * p[1:].max():
-        ax.set_yscale('log', basey=2)
-        ax.get_yaxis().get_major_formatter().labelOnlyBase = False
-        ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-
+    p, p_edges = np.histogram(vals, bins=kwargs.pop('bins', 50), range=[vals.min(), vals.max()])
+    p = p.astype(float) / p.sum()
     p = list(p)
     p.append(p[-1])
     ax.plot(p_edges, p, ls='steps', lw=1.9, **kwargs)
