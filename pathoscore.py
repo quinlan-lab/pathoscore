@@ -120,8 +120,9 @@ def evaluate(vcfs, fields, inverse_fields, include=None, functional=False, goi=s
                     continue
             genes = get_genes(csq)
 
-            if is_pathogenic and v.INFO.get('_exclude'):
-                common_pathogenic += 1
+            if v.INFO.get('_exclude'): # excludes benigns as well if desired
+                if is_pathogenic:
+                    common_pathogenic += 1
                 continue
             scorable[is_pathogenic][is_indel] += 1
 
