@@ -32,8 +32,8 @@ sortit() {
     set -euo pipefail
     fn=$1
     grep "^#" $fn > tt.tmp.vcf
-    grep -v "^#" $fn | sort -k1,1 -k2,2n >> tt.tmp.vcf
-	bash ../bcsq.sh $gff tt.tmp.vcf -T . $fasta \
+    grep -v "^#" $fn | sort -k1,1 -k2,2n -T . >> tt.tmp.vcf
+	bash ../bcsq.sh $gff tt.tmp.vcf $fasta \
         | python ../../truth-sets/score.py - \
         | bgzip -c > $fn.gz
 
