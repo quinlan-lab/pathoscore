@@ -36,6 +36,13 @@ The `scores` format is `path:name:column:op` where:
 + column indicates the column number (or INFO name) to pull from the scores VCF.
 + op is a `vcfanno` operation.
 
++ multiple annotations for the same file can be used as such:
+```
+python pathoscore.py annotate --prefix benign \
+ --scores score-sets/GRCh37/aloft/aloft.txt.gz:aloft_het,aloft_lof,aloft_rec:5,6,7:max,max,max \
+ truth-sets/GRCh37/clinvar/clinvar-benign.20170905.vcf.gz
+```
+
 ### exclude
 
 can be a population VCF that is used to filter would-be pathogenic variants (as we know that common variants can't be pathogenic). This can also be a set of regions to exclude, and for user convenience we curated gene sets that the user can filter on such as autosomal dominant genes from Berg et al. (2013) and haploinsufficient genes from Dang et al. (2008).
