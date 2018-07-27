@@ -587,21 +587,26 @@ def annotate(args):
 
     fh = open("%s.conf" % args.prefix, "w")
     lua_fields = ['"%s"' % i for i in infos(args.query_vcf)]
-    names = []
     for path, name, field, op in scores:
-        names.append(name)
+        fields = []
+        name = name.split(",")
+        op = op.split(",")
         lua_fields.append('"%s"' % name)
-        if not field.isdigit():
-            field = '"%s"' % field
-            col = "fields"
-        else:
-            col = "columns"
+        field = field.split(",")
+        for f in field:
+            if not f.isdigit():
+                f = '"%s"' % f
+                col = "fields"
+            else:
+                col = "columns"
+            fields.append(int(f))
         fh.write("""[[annotation]]
 file="{path}"
-names=["{name}"]
-{col}=[{field}]
-ops=["{op}"]
+names={name}
+{col}={fields}
+ops={op}
 \n""".format(**locals()))
+        print (name, op, fields, col)
 
     for exclude in (args.exclude or []):
         field = """fields=["AF"]""" if exclude.endswith(".vcf.gz") else """columns=[1]"""
