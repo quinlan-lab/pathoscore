@@ -387,6 +387,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     fig.savefig(prefix + ".roc." + suffix)
     fig2.savefig(prefix + ".pr." + suffix)
     plt.close()
+    ax.clear()
 
     for i, f in enumerate(score_methods):
       jc, cutoff, thresh, se = jcurves[f]
