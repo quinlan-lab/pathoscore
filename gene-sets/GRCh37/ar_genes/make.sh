@@ -1,8 +1,6 @@
-date=2017_07_14
-set -e
 # grabs files
-if [[ ! -e berg_ad.tsv ]]; then
-    wget https://raw.githubusercontent.com/macarthur-lab/gene_lists/master/lists/berg_ad.tsv
+if [[ ! -e berg_ar.tsv ]]; then
+    wget https://raw.githubusercontent.com/macarthur-lab/gene_lists/master/lists/berg_ar.tsv
 fi
 if [[ ! -s ../Homo_sapiens.GRCh37.75.gtf.gz ]]; then
     wget -P .. ftp://ftp.ensembl.org/pub/release-75/gtf/homo_sapiens/Homo_sapiens.GRCh37.75.gtf.gz # final release for GRCh37
@@ -14,19 +12,19 @@ if [[ ! -s ../Homo_sapiens.GRCh37.75.gtf.gz ]]; then
     sed 's/\"//g' ../codingtranscriptome.bed | sed 's/;//g' > ../Homo_sapiens37.bed
 fi
 # matches gene names to bed coordinates
-awk 'FNR==NR{genes[$1]; next} {for (gene in genes) if (gene == $5) print $0, genes[gene]}' FS='\t' OFS='\t' berg_ad.tsv ../Homo_sapiens37.bed | sort -k1,1 -k2,2n | cut -f -3 > unflattened_ad_genes.bed
+awk 'FNR==NR{genes[$1]; next} {for (gene in genes) if (gene == $5) print $0, genes[gene]}' FS='\t' OFS='\t' berg_ar.tsv ../Homo_sapiens37.bed | sort -k1,1 -k2,2n | cut -f -3 > unflattened_ar_genes.bed
 # creates flattened representation of protein-coding exome covering AD genes
-bedtools merge -i unflattened_ad_genes.bed > ad_genes.bed
+bedtools merge -i unflattened_ar_genes.bed > ar_genes.bed
 
-sort -k1,1 -k2,2n ad_genes.bed | bgzip -c > ad_genes.bed.gz
-tabix ad_genes.bed.gz
+sort -k1,1 -k2,2n ar_genes.bed | bgzip -c > ar_genes.bed.gz
+tabix ar_genes.bed.gz
 
 
 # bedtools complement so we can use the EXCLUDE option
 if [[ ! -s hg19.chrom.sizes ]]; then
     wget https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes
 fi
-bedtools complement -i <(cut -f -3 ad_genes.bed | sort -k1,1 -k2,2n) -g <(sed 's/^chr//g' hg19.chrom.sizes | sort -k1,1) > ad_gene_complement.bed
+bedtools complement -i <(cut -f -3 ar_genes.bed | sort -k1,1 -k2,2n) -g <(sed 's/^chr//g' hg19.chrom.sizes | sort -k1,1) > ar_gene_complement.bed
 # sorted, bgzipped, and tabixed
-sort -k1,1 -k2,2n ad_gene_complement.bed | bgzip -c > ad_gene_complement.bed.gz
-tabix -f ad_gene_complement.bed.gz
+sort -k1,1 -k2,2n ar_gene_complement.bed | bgzip -c > ar_gene_complement.bed.gz
+tabix -f ar_gene_complement.bed.gz
