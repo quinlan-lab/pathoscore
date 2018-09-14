@@ -112,6 +112,22 @@ cd ../gene-sets/GRCh37/hi_genes/
 bash make.sh
 cd -
 
+cd ../gene-sets/GRCh37/ar_genes/
+bash make.sh
+cd -
+
+cd ../gene-sets/GRCh37/cancer_genes/
+bash make.sh
+cd -
+
+cd ../gene-sets/GRCh37/heart_genes/
+bash make.sh
+cd -
+
+cd ../gene-sets/GRCh37/eiee_genes/
+bash make.sh
+cd -
+
 # make population sets
 
 cd ../scripts/gnomad
