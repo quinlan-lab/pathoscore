@@ -212,11 +212,16 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     bar_colors = [bar_colors[0], tuple(x * 0.85 for x in bar_colors[0]), (0.9, 0.9, 0.9), (0.8, 0.8, 0.8)]
 
     if len(score_methods) <= 10:
-        sns.set_palette(sns.color_palette("Vega10", 10))
-        colors = sns.color_palette()
+        try:
+            sns.set_palette(sns.color_palette("Vega10", 10))
+        except ValueError:
+            sns.set_palette(sns.color_palette("tab10", 10))
     else:
-        sns.set_palette(sns.color_palette("Vega20", 20))
-        colors = sns.color_palette()
+        try:
+            sns.set_palette(sns.color_palette("Vega20", 20))
+        except ValueError:
+            sns.set_palette(sns.color_palette("tab20", 20))
+    colors = sns.color_palette()
     fig, ax = plt.subplots(figsize=(WIDTH, 6))
     fig2, ax2 = plt.subplots(figsize=(WIDTH, 6))
 
