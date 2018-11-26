@@ -218,9 +218,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
             sns.set_palette(sns.color_palette("tab10", 10))
     else:
         try:
-            sns.set_palette(sns.color_palette("Vega20", 20))
+            sns.set_palette(sns.color_palette("Vega20", len(score_methods)))
         except ValueError:
-            sns.set_palette(sns.color_palette("tab20", 20))
+            sns.set_palette(sns.color_palette("tab20", len(score_methods)))
     colors = sns.color_palette()
     fig, ax = plt.subplots(figsize=(WIDTH, 6))
     fig2, ax2 = plt.subplots(figsize=(WIDTH, 6))
@@ -392,16 +392,16 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     fig.savefig(prefix + ".roc." + suffix)
     fig2.savefig(prefix + ".pr." + suffix)
     plt.close()
-    ax.clear()
 
+    fig, ax = plt.subplots(figsize=(WIDTH, 6))
     for i, f in enumerate(score_methods):
       jc, cutoff, thresh, se = jcurves[f]
       idx = np.argmax(jc)
       xs = minmax_scale(thresh)
       J = jc[idx]
       label = "%s (Peak J: %.2f @ score: %.2f)" % (f, J, cutoff)
-      plt.plot(xs, jc, label=label)
-      plt.plot([xs[idx]], [jc[idx]], 'ko')
+      ax.plot(xs, jc, label=label)
+      ax.plot([xs[idx]], [jc[idx]], 'ko')
       jdist_traces.append({
            'x': list(np.round(xs, 3)),
            'y': list(np.round(jc, 3)),
@@ -424,9 +424,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
       })
 
     sns.despine()
-    plt.ylabel('J-score')
-    plt.xlabel('Normalized score')
-    leg = plt.legend(title="method (J-index @ score)", bbox_to_anchor=(1, 1))
+    ax.set_ylabel('J-score')
+    ax.set_xlabel('Normalized score')
+    leg = ax.legend(title="method (J-index @ score)", bbox_to_anchor=(1, 1))
     plt.savefig(prefix + ".J." + suffix, bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
 
