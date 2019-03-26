@@ -19,4 +19,5 @@ if [ ! -s CADD_precomputed.txt.gz ]; then
     python filter.py whole_genome_SNVs.tsv.gz InDels.tsv.gz CADD_sorted.scores.txt.gz | uniq | bgzip -c > CADD_precomputed.txt.gz; tabix -b 2 -e 2 CADD_precomputed.txt.gz
 fi
 
-#NOTE: use whole_genome_SNVs.tsv.gz, InDels.tsv.gz and CADD_precomputed.txt.gz, all column 6
+#NOTE: use whole_genome_SNVs.tsv.gz, InDels.tsv.gz, all column 6
+# only use precomputed if you want it
