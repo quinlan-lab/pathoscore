@@ -21,8 +21,9 @@ python ../pathoscore.py annotate benign.vcf.gz --exclude ../gene-sets/GRCh37/ad_
 python ../pathoscore.py annotate pathogenic.vcf.gz --exclude ../gene-sets/GRCh37/ar_genes/ar_gene_complement.bed.gz  --prefix argene.pathogenic
 python ../pathoscore.py annotate benign.vcf.gz --exclude ../gene-sets/GRCh37/ar_genes/ar_gene_complement.bed.gz  --prefix argene.benign
 
-# filtered pathogenics on ClinVar
+# filtered pathogenics/benigns on ClinVar
 python ../pathoscore.py annotate pathogenic.vcf.gz --exclude ../scripts/gnomad/ExAC.vcf.gz --exclude ../scripts/gnomad/gnomad.vcf.gz --prefix pathogenic.filter
+python ../pathoscore.py annotate benign.vcf.gz --exclude ../scripts/gnomad/ExAC.vcf.gz --exclude ../scripts/gnomad/gnomad.vcf.gz --prefix benign.filter
 
 #########
 #SAMOCHA#

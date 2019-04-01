@@ -22,6 +22,10 @@ import seaborn as sns
 from sklearn.preprocessing import minmax_scale
 sns.set_style('white')
 
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = ['Arial']
+
 __version__ = "0.1.3"
 
 WIDTH = 7
@@ -258,7 +262,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     }]
     jdist_traces = []
     jindices = {}
-    output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J'))
+    output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J', 'F1@J'))
     for i, f in enumerate(score_methods):
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
@@ -310,6 +314,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         output['FP@J'].append(C)
         output['TN@J'].append(D)
         output['FN@J'].append(B)
+        output['F1@J'].append(f1)
         label = "%s (AUC: %.2f, Peak J-score: %.2f)" % (f, auc_score, J)
         label2 = "%s (%.2f, %.2f)" % (f, auc_score, J)
         roc_traces.append({
