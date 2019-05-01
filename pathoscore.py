@@ -734,6 +734,8 @@ if __name__ == "__main__":
                 functional=a.functional, goi=goi)
         jindices, score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, goi)
         cu, header = clinical_utility(scoredbygene, unscoredbygene, jindices, a.prefix, goi)
+        print ("\t".join([i["title"] for i in header]), file=open(a.prefix+".cu.tsv","w"))
+        print ("\n".join(["\t".join(j) for j in cu]), file=open(a.prefix+".cu.tsv","a"))
         plotly_html(score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
 
 
