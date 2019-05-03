@@ -1,3 +1,5 @@
+mkdir -p $HOME/public_html/pathoscorepaper
+
 #########
 #CLINVAR#
 #########
@@ -11,7 +13,9 @@ python ../pathoscore.py evaluate --functional --prefix $HOME/public_html/pathosc
 python ../pathoscore.py evaluate --functional --prefix $HOME/public_html/pathoscorepaper/clinvarar -s CCR -s CADD -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s MetaSVM -s Grantham --suffix pdf argene.pathogenic.vcf.gz argene.benign.vcf.gz
 
 # regular clinvar
-python ../pathoscore.py evaluate --prefix $HOME/public_html/pathoscorepaper/clinvar -s CCR -s CADD -s DANN -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s aloft_het -i aloft_lof -i aloft_rec -s fathmm_non -s fathmm_coding -s fitCons -s MetaSVM -s missense_z -s pLI -s phastCons -s polyphen2_hvar -s SIFT -s mis_badness -i BLOSUM -s Grantham --suffix pdf --goi pathogenicgenes.txt pathogenic.vcf.gz benign.vcf.gz
+python ../pathoscore.py evaluate --prefix $HOME/public_html/pathoscorepaper/clinvarall -s CCR -s CADD -s DANN -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s aloft_het -i aloft_lof -i aloft_rec -s fathmm_non -s fathmm_coding -s fitCons -s MetaSVM -s missense_z -s pLI -s phastCons -s polyphen2_hvar -s SIFT -s mis_badness -i BLOSUM -s Grantham --suffix pdf --goi pathogenicgenes.txt pathogenic.vcf.gz benign.vcf.gz
+
+python ../pathoscore.py evaluate --prefix $HOME/public_html/pathoscorepaper/clinvar -s CCR -s CADD -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s MetaSVM -s Grantham --suffix pdf --goi pathogenicgenes.txt pathogenic.vcf.gz benign.vcf.gz
 
 # pathogenic filtered clinvar on functional and gnomAD
 python ../pathoscore.py evaluate --functional --prefix $HOME/public_html/pathoscorepaper/clinvarfilter -s CCR -s CADD -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s MetaSVM -s Grantham --suffix pdf pathogenic.filter.vcf.gz benign.vcf.gz
@@ -41,6 +45,9 @@ python ../pathoscore.py evaluate --prefix $HOME/public_html/pathoscorepaper/homs
 
 # filtered homsy
 python ../pathoscore.py evaluate --functional --prefix $HOME/public_html/pathoscorepaper/homsyfilter -s CCR -s CADD -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s MetaSVM -s Grantham --suffix pdf hompathogenic.filter.vcf.gz hombenign.vcf.gz
+
+# homsy benigns, clinvar pathogenics, filtered functionally
+python ../pathoscore.py evaluate --functional --prefix $HOME/public_html/pathoscorepaper/clinvarhomsy -s CCR -s CADD -s GERP -s MCAP -s MPC -i MTR -s REVEL -i RVIS -s VVP -s MetaSVM -s Grantham --suffix pdf pathogenic.vcf.gz hombenign.vcf.gz
 
 #########
 #WIGLER##
