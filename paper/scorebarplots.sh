@@ -1,0 +1,1 @@
+python scorebarplot.py $HOME/public_html/pathoscorepaper/clinvar.csv $HOME/public_html/pathoscorepaper/samocha.csv $HOME/public_html/pathoscorepaper/homsy.csv $HOME/public_html/pathoscorepaper/wigler.csv

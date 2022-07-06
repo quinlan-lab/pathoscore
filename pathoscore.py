@@ -22,6 +22,12 @@ import seaborn as sns
 from sklearn.preprocessing import minmax_scale
 sns.set_style('white')
 
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = ['Arial']
+matplotlib.rc('xtick', labelsize=16) 
+matplotlib.rc('ytick', labelsize=16)
+
 __version__ = "0.1.3"
 
 WIDTH = 7
@@ -258,7 +264,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
     }]
     jdist_traces = []
     jindices = {}
-    output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J'))
+    output = OrderedDict((k, []) for k in ('method', 'J', 'score@J', 'se(J)', 'TPR@J', 'FPR@J', 'AUC', 'TP@J', 'FP@J', 'TN@J', 'FN@J', 'F1@J'))
     for i, f in enumerate(score_methods):
         if len(scored[f][0]) == 0:
             print("skipping %s because no negatives" % f, file=sys.stderr)
@@ -310,6 +316,7 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
         output['FP@J'].append(C)
         output['TN@J'].append(D)
         output['FN@J'].append(B)
+        output['F1@J'].append(f1)
         label = "%s (AUC: %.2f, Peak J-score: %.2f)" % (f, auc_score, J)
         label2 = "%s (%.2f, %.2f)" % (f, auc_score, J)
         roc_traces.append({
@@ -379,14 +386,14 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
 
     ax.set_xlim(-0.004, 1)
     ax.set_ylim(0, 1)
-    ax.set_xlabel("False Positive Rate")
-    ax.set_ylabel("True Positive Rate")
+    ax.set_xlabel("False Positive Rate", fontsize=16)
+    ax.set_ylabel("True Positive Rate", fontsize=16)
     ax2.set_xlim(-0.004, 1)
     ax2.set_ylim(0, 1)
-    ax2.set_xlabel("Recall")
-    ax2.set_ylabel("Precision")
-    legend = ax.legend(loc="lower right", title="%s (AUC, J index)" % "method", handletextpad=1)
-    legend = ax2.legend(loc="lower right", title="%s (F1 Score @ Peak J)" % "method", handletextpad=1)
+    ax2.set_xlabel("Recall", fontsize=16)
+    ax2.set_ylabel("Precision", fontsize=16)
+    legend = ax.legend(loc="lower right", title="%s (AUC, J index)" % "method", handletextpad=1, fontsize=12)
+    legend = ax2.legend(loc="lower right", title="%s (F1 Score @ Peak J)" % "method", handletextpad=1, fontsize=12)
     if title:
         plt.title(title)
     fig.savefig(prefix + ".roc." + suffix)
@@ -424,9 +431,9 @@ def plot(score_methods, scored, unscored, scorable, prefix, title=None, suffix="
       })
 
     sns.despine()
-    ax.set_ylabel('J-score')
-    ax.set_xlabel('Normalized score')
-    leg = ax.legend(title="method (J-index @ score)", bbox_to_anchor=(1, 1))
+    ax.set_ylabel('J-score', fontsize=16)
+    ax.set_xlabel('Normalized score', fontsize=16)
+    leg = ax.legend(title="method (J-index @ score)", bbox_to_anchor=(1, 1), fontsize=14)
     plt.savefig(prefix + ".J." + suffix, bbox_extra_artists=(leg,), bbox_inches='tight')
     plt.close()
 
@@ -729,6 +736,8 @@ if __name__ == "__main__":
                 functional=a.functional, goi=goi)
         jindices, score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces = plot(methods, scored, unscored, scorable, a.prefix, a.title, a.suffix, goi)
         cu, header = clinical_utility(scoredbygene, unscoredbygene, jindices, a.prefix, goi)
+        print ("\t".join([i["title"] for i in header]), file=open(a.prefix+".cu.tsv","w"))
+        print ("\n".join(["\t".join(j) for j in cu]), file=open(a.prefix+".cu.tsv","a"))
         plotly_html(score_methods, score_counts, roc_traces, pr_traces, jbar_trace, jdist_traces, score_step_divs, step_traces, scorable, a.prefix, cu, header)
 
 
